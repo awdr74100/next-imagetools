@@ -1,11 +1,12 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { connect } from 'node:net';
 import path from 'node:path';
 
 import type { Browser } from 'playwright';
 import sharp from 'sharp';
-import { expect } from 'vitest';
+import { beforeEach, expect } from 'vitest';
 
 // The fixture app consumes the package through its built `dist`, the way users will.
 const ROOT = path.resolve(import.meta.dirname, 'fixtures/next-app');
@@ -99,7 +100,59 @@ function kill(child: ChildProcess) {
   else child.kill('SIGTERM');
 }
 
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+function isListening(port: number): Promise<boolean> {
+  return new Promise(resolve => {
+    const socket = connect(port, 'localhost');
+    socket.once('connect', () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.once('error', () => resolve(false));
+  });
+}
+
+/**
+ * Stops a server and waits until its port is free. Returning earlier lets the next server on the
+ * same port race a dying one: the readiness check can be answered by the old process, serving the
+ * old content, which reads exactly like a stale cache.
+ */
+async function stopServer(child: ChildProcess, port: number) {
+  if (child.exitCode === null && child.pid) {
+    const exited = new Promise(r => child.once('exit', r));
+    kill(child);
+    await Promise.race([exited, sleep(15_000)]);
+  }
+  // next spawns worker processes; the port is only free once all of them are gone
+  const deadline = Date.now() + 15_000;
+  while (await isListening(port)) {
+    if (Date.now() > deadline) throw new Error(`port ${port} still in use after stopping next`);
+    await sleep(200);
+  }
+}
+
+/**
+ * Prints the server's output when a test fails. Cache bugs tend to be intermittent, and a failure
+ * that only says "wrong pixel" can't be diagnosed after the fact; the server log (compile errors,
+ * warnings, what it rebuilt) usually can.
+ */
+export function logServerOnFailure(getServer: () => { log: () => string } | undefined) {
+  beforeEach(({ onTestFailed }) => {
+    onTestFailed(({ task }) => {
+      const log = getServer()?.log();
+      if (log)
+        console.error(
+          `\n--- next log for "${task.name}" ---\n${log.slice(-20_000)}\n--- end ---\n`,
+        );
+    });
+  });
+}
+
 export async function startServer(mode: 'start' | 'dev', port: number, root = ROOT) {
+  if (await isListening(port)) {
+    throw new Error(`port ${port} is already in use: a previous server did not shut down`);
+  }
   const child = spawn(process.execPath, [nextBin(root), mode, '-p', String(port)], {
     cwd: root,
     env,
@@ -122,7 +175,7 @@ export async function startServer(mode: 'start' | 'dev', port: number, root = RO
     }
     await new Promise(r => setTimeout(r, 500));
   }
-  return { base, log: () => log, stop: () => kill(child) };
+  return { base, log: () => log, stop: () => stopServer(child, port) };
 }
 
 type Expected = {

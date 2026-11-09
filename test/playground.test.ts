@@ -15,7 +15,7 @@ describe('playground', () => {
     browser = await chromium.launch();
   });
   afterAll(async () => {
-    server?.stop();
+    await server?.stop();
     await browser?.close();
   });
 

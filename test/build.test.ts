@@ -9,8 +9,15 @@ async function buildAndVerify(color: typeof BLUE) {
   const server = await startServer('start', PORT);
   try {
     return await verifyPage(server.base, color);
+  } catch (error) {
+    console.error(`
+--- next start log ---
+${server.log().slice(-20_000)}
+--- end ---
+`);
+    throw error;
   } finally {
-    server.stop();
+    await server.stop();
   }
 }
 

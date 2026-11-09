@@ -1,19 +1,29 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { BLUE, RED, clean, startServer, verifyPage, waitFor, writeHero } from './helpers';
+import {
+  BLUE,
+  RED,
+  clean,
+  logServerOnFailure,
+  startServer,
+  verifyPage,
+  waitFor,
+  writeHero,
+} from './helpers';
 
 const PORT = 3202;
 
 // Each step builds on the cache state the previous one left behind.
 describe.sequential('next dev (Turbopack)', () => {
   let server: Awaited<ReturnType<typeof startServer>> | undefined;
+  logServerOnFailure(() => server);
 
   beforeAll(async () => {
     await writeHero(BLUE);
     clean({ next: true, imagetools: true });
   });
   afterAll(async () => {
-    server?.stop();
+    await server?.stop();
     await writeHero(BLUE);
   });
 
@@ -28,13 +38,13 @@ describe.sequential('next dev (Turbopack)', () => {
   });
 
   it('restart reuses the persistent cache without going stale', async () => {
-    server!.stop();
+    await server!.stop();
     server = await startServer('dev', PORT);
     await verifyPage(server.base, RED);
   });
 
   it('source edited while the server is stopped', async () => {
-    server!.stop();
+    await server!.stop();
     await writeHero(BLUE);
     server = await startServer('dev', PORT);
     await verifyPage(server.base, BLUE);

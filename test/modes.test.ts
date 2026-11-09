@@ -5,6 +5,7 @@ import {
   BLUE,
   build,
   clean,
+  logServerOnFailure,
   serveExport,
   startServer,
   verifyHtml,
@@ -36,6 +37,7 @@ afterAll(() => browser?.close());
 
 describe.sequential('rendering modes, next start', () => {
   let server: Awaited<ReturnType<typeof startServer>>;
+  logServerOnFailure(() => server);
   beforeAll(async () => {
     clean({ next: true, imagetools: true });
     build();
@@ -70,6 +72,7 @@ describe.sequential('rendering modes, output: export on a plain static server', 
 
 describe.sequential('rendering modes, next dev', () => {
   let server: Awaited<ReturnType<typeof startServer>>;
+  logServerOnFailure(() => server);
   beforeAll(async () => {
     clean({ next: true, imagetools: true });
     server = await startServer('dev', 3205);
