@@ -15,6 +15,7 @@ import {
   type Logger,
   type ProcessedImage,
 } from 'imagetools-core';
+import picomatch from 'picomatch';
 import sharp from 'sharp';
 
 import {
@@ -43,6 +44,26 @@ const clamp = (s: string, n: number) =>
 // Output formats that always produce one value; identical variants would only repeat entries
 // (and a srcset may not list the same width twice), so they are dropped before formatting.
 const SINGLE_VALUE_FORMATS = new Set(['srcset', 'img', 'picture']);
+
+const matchers = new Map<string, (path: string) => boolean>();
+const matcherFor = (globs: string[]) => {
+  const key = JSON.stringify(globs);
+  let match = matchers.get(key);
+  if (!match) matchers.set(key, (match = picomatch(globs, { dot: true })));
+  return match;
+};
+
+/**
+ * Whether include/exclude let imagetools handle a file. Globs are matched against the path relative
+ * to the Next.js app (the loader's root context), not Turbopack's root, which in a monorepo is the
+ * workspace root — so `src/assets/**` means the same thing in either layout.
+ */
+function isHandled(relativePath: string, { include, exclude }: LoaderOptions): boolean {
+  const file = relativePath.split(path.sep).join('/');
+  if (include?.length && !matcherFor(include)(file)) return false;
+  if (exclude?.length && matcherFor(exclude)(file)) return false;
+  return true;
+}
 
 /**
  * The directives an import ends up with, lowest precedence first: `defaultDirectives`, then the
@@ -87,9 +108,15 @@ function uniqueByConfig(images: ProcessedImage[]): ProcessedImage[] {
 // loader-runner awaits a returned promise, so no this.async() is needed
 export default async function imagetoolsLoader(this: LoaderContext): Promise<string> {
   const options = this.getOptions?.() ?? {};
-  const cacheDir = cacheDirOf(this, options);
-
   const pathname = this.resourcePath;
+
+  // An import outside include/exclude is handed back to Next.js: re-importing the file without
+  // its query reaches Next's own image handling, as if imagetools weren't installed.
+  if (!isHandled(path.relative(this.rootContext ?? process.cwd(), pathname), options)) {
+    return `export { default } from ${JSON.stringify(`./${path.basename(pathname)}`)};\n`;
+  }
+
+  const cacheDir = cacheDirOf(this, options);
   const directives = resolveDirectives(new URLSearchParams(this.resourceQuery), options);
 
   const source = await readFile(pathname);

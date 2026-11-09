@@ -234,6 +234,11 @@ function expectedImages(html: string): Expected[] {
   expect(data.heroGallery, '&imagetools-gallery yields an array').toHaveLength(2);
   expect(data.heroClamped, 'values clamped to one size keep the array shape').toHaveLength(2);
   expect(data.heroClamped[0], 'identical variants share one file').toBe(data.heroClamped[1]);
+  expect(data.excluded, 'an excluded import keeps Next.js handling').toMatchObject({
+    width: 64,
+    height: 48,
+    src: expect.stringMatching(/\/photo\.[\w-]+\.jpg$/),
+  });
   // a same-format output keeps the source's name; a converted one adds the new extension
   expect(data.heroPicture.img.src, 'jpg from a jpg source').toMatch(/\/hero\.[\w-]+\.jpg$/);
   expect(data.heroUrl, 'webp from a jpg source').toMatch(/\/hero\.jpg\.[\w-]+\.webp$/);

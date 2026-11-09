@@ -151,6 +151,27 @@ describe('module loader', () => {
     });
   });
 
+  describe('include and exclude', () => {
+    // the test context's root is the image's directory, so the source's relative path is hero.jpg
+    const handBack = 'export { default } from "./hero.jpg";\n';
+
+    it('hands an excluded import back to Next.js', async () => {
+      expect(await runModule('?w=300&format=webp', { exclude: ['*.jpg'] })).toBe(handBack);
+    });
+
+    it('hands back an import that include does not match', async () => {
+      expect(await runModule('?w=300&format=webp', { include: ['assets/**'] })).toBe(handBack);
+    });
+
+    it('processes an import that include matches and exclude does not', async () => {
+      const code = await runModule('?w=300&format=webp', {
+        include: ['**/*.jpg'],
+        exclude: ['raw/**'],
+      });
+      expect(code).toMatch(/tpit_ext=webp/);
+    });
+  });
+
   describe('named exports', () => {
     const names = (code: string) => [...code.matchAll(/^export const (\w+) = /gm)].map(m => m[1]);
 

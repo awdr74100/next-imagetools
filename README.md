@@ -247,6 +247,10 @@ export default withImagetools(nextConfig, {
 - **`removeMetadata`** — strip EXIF, ICC, XMP and other private metadata from generated images. Default: `true`.
 - **`namedExports`** — also export the keys of object results by name, as in `import { width } from './a.jpg?as=metadata'`. Default: `true`.
 - **`extensions`** — source file extensions handled when imported with a query. Default: `jpg`, `jpeg`, `png`, `webp`, `avif`, `gif`, `tiff`, `heif`.
+- **`include`** — globs; only imports whose path matches one of them are handled. Default: all.
+- **`exclude`** — globs; imports whose path matches one of them are never handled.
+
+`include` and `exclude` match paths relative to your Next.js app (where `next.config.ts` is), also in a monorepo — `exclude: ['src/legacy/**']`. An import they rule out is left to Next.js exactly as if it had no query.
 
 Options must be JSON-serializable: Turbopack runs loaders in separate worker processes and passes their options as data.
 
@@ -284,7 +288,7 @@ One deliberate difference: when values clamp to the source size and become ident
 
 `defaultDirectives` takes directives as data (a query string or an object) rather than a function. For per-image presets, use [`presets`](#presets-and-defaults) — `?preset=hero` instead of a custom `?hero` directive.
 
-Not supported yet: the `inline` directive, and the `include`, `exclude`, `extendTransforms`, `extendOutputFormats` and `resolveConfigs` options.
+Not supported yet: the `inline` directive, and the `extendTransforms`, `extendOutputFormats` and `resolveConfigs` options.
 
 ## How it works
 
