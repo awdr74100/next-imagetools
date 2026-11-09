@@ -435,6 +435,14 @@ Generated files are named after their source: `hero.<hash>.jpg` when the format 
 
 **`Warning: AVIF image not supported` during the build.** Turbopack logs this for generated AVIF files. The files are emitted correctly; the warning comes from Turbopack's own image handling and can be ignored.
 
+**The build runs out of memory.** sharp encodes on Node's libuv thread pool — 4 threads per process by default — and Turbopack runs several loader worker processes, which all inherit the pool size. A smaller pool lowers peak memory for some speed:
+
+```bash
+UV_THREADPOOL_SIZE=2 next build
+```
+
+Measured on 12 variants of a 24-megapixel JPEG in one worker: peak memory went from 549 MB to 405 MB, time from 8.7 s to 9.6 s.
+
 ## Contributing
 
 Bug reports and pull requests are welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the development setup and the test suites.
