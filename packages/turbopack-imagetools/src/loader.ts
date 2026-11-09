@@ -140,11 +140,37 @@ export default async function imagetoolsLoader(this: LoaderContext): Promise<str
     .map((q, i) => `import __tpit_${i} from ${JSON.stringify(self + q)};`)
     .join('\n');
 
+  const named = options.namedExports === false ? [] : namedExportKeys(result);
+  const namedExports = named
+    .map(key => `export const ${key} = __tpit_value[${JSON.stringify(key)}];`)
+    .join('\n');
+
   return `${imports}
 const __tpit_url = (m) => (m && typeof m === 'object' ? m.src : m);
 const __tpit_value = ${json};
 export default __tpit_value;
+${namedExports}
 `;
+}
+
+// Reserved words can't be export names; everything else that is a valid identifier can.
+const RESERVED = new Set(
+  (
+    'await break case catch class const continue debugger default delete do else enum export ' +
+    'extends false finally for function if implements import in instanceof interface let new ' +
+    'null package private protected public return static super switch this throw true try ' +
+    'typeof var void while with yield'
+  ).split(' '),
+);
+
+/**
+ * Keys of an object result (`as=metadata`, `as=img`, `as=picture`) to also export by name, so
+ * `import { width, src } from './a.jpg?as=metadata'` works as it does in vite-imagetools. Arrays
+ * and strings have no keys to export.
+ */
+function namedExportKeys(result: unknown): string[] {
+  if (!result || typeof result !== 'object' || Array.isArray(result)) return [];
+  return Object.keys(result).filter(k => /^[A-Za-z_$][\w$]*$/.test(k) && !RESERVED.has(k));
 }
 
 // the source is read from disk by the loader itself, so skip the utf8 decode

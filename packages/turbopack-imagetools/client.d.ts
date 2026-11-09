@@ -10,7 +10,11 @@
 //   import thumbs from './hero.jpg?w=200;400&format=webp&imagetools-gallery'; // string[]
 //   import meta from './hero.jpg?w=800&as=metadata&imagetools';             // ImagetoolsMetadata
 //
-// The markers match vite-imagetools' documented ones, so imports carry over unchanged.
+// The markers match the ones commonly used with vite-imagetools, so imports carry over unchanged.
+// Object results (metadata, img, picture) are also exported by name:
+//
+//   import { src, width, height } from './hero.jpg?w=800&as=metadata&imagetools';
+//
 // `as=srcset`, `as=img` and `as=picture` always produce a single value, so those also type
 // without a marker as long as the `as=` directive comes last.
 
@@ -26,6 +30,19 @@ interface ImagetoolsMetadata extends Omit<import('sharp').Metadata, 'width' | 'h
 declare module '*&as=metadata&imagetools' {
   const metadata: ImagetoolsMetadata;
   export default metadata;
+  export const src: ImagetoolsMetadata['src'];
+  export const width: ImagetoolsMetadata['width'];
+  export const height: ImagetoolsMetadata['height'];
+  export const format: ImagetoolsMetadata['format'];
+  export const size: ImagetoolsMetadata['size'];
+  export const space: ImagetoolsMetadata['space'];
+  export const channels: ImagetoolsMetadata['channels'];
+  export const depth: ImagetoolsMetadata['depth'];
+  export const density: ImagetoolsMetadata['density'];
+  export const isProgressive: ImagetoolsMetadata['isProgressive'];
+  export const hasProfile: ImagetoolsMetadata['hasProfile'];
+  export const hasAlpha: ImagetoolsMetadata['hasAlpha'];
+  export const orientation: ImagetoolsMetadata['orientation'];
 }
 
 declare module '*&as=metadata&imagetools-gallery' {
@@ -36,6 +53,19 @@ declare module '*&as=metadata&imagetools-gallery' {
 declare module '*&as=meta&imagetools' {
   const metadata: ImagetoolsMetadata;
   export default metadata;
+  export const src: ImagetoolsMetadata['src'];
+  export const width: ImagetoolsMetadata['width'];
+  export const height: ImagetoolsMetadata['height'];
+  export const format: ImagetoolsMetadata['format'];
+  export const size: ImagetoolsMetadata['size'];
+  export const space: ImagetoolsMetadata['space'];
+  export const channels: ImagetoolsMetadata['channels'];
+  export const depth: ImagetoolsMetadata['depth'];
+  export const density: ImagetoolsMetadata['density'];
+  export const isProgressive: ImagetoolsMetadata['isProgressive'];
+  export const hasProfile: ImagetoolsMetadata['hasProfile'];
+  export const hasAlpha: ImagetoolsMetadata['hasAlpha'];
+  export const orientation: ImagetoolsMetadata['orientation'];
 }
 
 declare module '*&as=meta&imagetools-gallery' {
@@ -61,9 +91,15 @@ declare module '*as=srcset' {
 declare module '*as=img' {
   const img: import('imagetools-core').Img;
   export default img;
+  export const src: import('imagetools-core').Img['src'];
+  export const w: import('imagetools-core').Img['w'];
+  export const h: import('imagetools-core').Img['h'];
+  export const srcset: import('imagetools-core').Img['srcset'];
 }
 
 declare module '*as=picture' {
   const picture: import('imagetools-core').Picture;
   export default picture;
+  export const sources: import('imagetools-core').Picture['sources'];
+  export const img: import('imagetools-core').Picture['img'];
 }

@@ -19,6 +19,8 @@ import { version } from '../package.json';
 export interface LoaderOptions {
   cacheDir?: string;
   removeMetadata?: boolean;
+  /** Also export the keys of object results by name (default: true). */
+  namedExports?: boolean;
 }
 
 /** The subset of the webpack loader context that Turbopack provides and these loaders use. */

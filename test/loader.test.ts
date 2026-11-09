@@ -110,6 +110,34 @@ describe('module loader', () => {
     });
   });
 
+  describe('named exports', () => {
+    const names = (code: string) => [...code.matchAll(/^export const (\w+) = /gm)].map(m => m[1]);
+
+    it('exports the keys of a single metadata object by name', async () => {
+      const code = await runModule('?w=300&format=webp&as=metadata');
+      expect(names(code)).toEqual(expect.arrayContaining(['src', 'width', 'height', 'format']));
+      expect(code).toMatch(/^export const width = __tpit_value\["width"\];$/m);
+    });
+
+    it('exports sources and img for as=picture', async () => {
+      expect(names(await runModule('?w=300&format=webp;jpg&as=picture'))).toEqual([
+        'sources',
+        'img',
+      ]);
+    });
+
+    it('exports nothing by name for arrays and strings', async () => {
+      expect(names(await runModule('?w=300;400&format=webp&as=metadata'))).toEqual([]);
+      expect(names(await runModule('?w=300&format=webp'))).toEqual([]);
+      expect(names(await runModule('?w=300;400&format=webp&as=srcset'))).toEqual([]);
+    });
+
+    it('can be turned off', async () => {
+      const code = await runModule('?w=300&format=webp&as=metadata', { namedExports: false });
+      expect(names(code)).toEqual([]);
+    });
+  });
+
   it('caches separately per removeMetadata setting', async () => {
     const before = readdirSync(cacheDir).length;
     await runModule('?w=123&format=webp');
