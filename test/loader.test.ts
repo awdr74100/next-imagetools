@@ -432,6 +432,17 @@ describe('module loader', () => {
       ).rejects.toThrow('turbopack-imagetools: broken.jpg?tpit=x&tpit_ext=webp&w=10&format=webp:');
     });
 
+    it('handles file names that need escaping, and encodes the URLs it exports', async () => {
+      const spaced = path.join(path.dirname(HERO), 'my photo (1) & café.jpg');
+      writeFileSync(spaced, readFileSync(HERO));
+      const code = (await moduleLoader.default.call(
+        context('?w=40&format=webp', spaced),
+      )) as string;
+      expect(code).toContain('from "./my photo (1) & café.jpg?tpit=');
+      // a space would otherwise split a srcset entry; Turbopack returns the path unencoded
+      expect(code).toContain('const __tpit_url = (m) => encodeURI(');
+    });
+
     it('ignores a stray separator instead of adding an empty variant', async () => {
       expect(exported(await runModule('?w=300&format=webp;'))).toBe('#0');
     });
@@ -461,6 +472,89 @@ describe('module loader', () => {
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
+    });
+  });
+
+  describe('animated sources', () => {
+    // two 200x100 frames: red, then blue
+    let animated: string;
+    beforeAll(async () => {
+      animated = path.join(path.dirname(HERO), 'anim.gif');
+      const frame = (background: string) =>
+        sharp({ create: { width: 200, height: 100, channels: 3, background } })
+          .png()
+          .toBuffer();
+      await sharp([await frame('#ff0000'), await frame('#0000ff')], { join: { animated: true } })
+        .gif({ delay: [200, 200] })
+        .toFile(animated);
+    });
+
+    const output = async (query: string) => {
+      const code = (await moduleLoader.default.call(context(query, animated))) as string;
+      const sub = code.match(/"\.\/anim\.gif(\?[^"]+)"/)![1]!;
+      return (await assetLoader.default.call(context(sub, animated))) as Buffer;
+    };
+    /** Each frame's size and the color at its center. */
+    const frames = async (bytes: Buffer) => {
+      const { pages = 1 } = await sharp(bytes).metadata();
+      return Promise.all(
+        Array.from({ length: pages }, async (_, page) => {
+          const image = sharp(bytes, { page });
+          const { width, height } = await image.metadata();
+          const { data } = await image
+            .extract({
+              left: Math.floor(width / 2),
+              top: Math.floor(height / 2),
+              width: 1,
+              height: 1,
+            })
+            .removeAlpha()
+            .raw()
+            .toBuffer({ resolveWithObject: true });
+          return { width, height, color: data[0]! > data[2]! ? 'red' : 'blue' };
+        }),
+      );
+    };
+
+    it.each(['webp', 'gif'])(
+      'keeps every frame, each resized to the right aspect, as %s',
+      async format => {
+        expect(await frames(await output(`?w=100&format=${format}`))).toEqual([
+          { width: 100, height: 50, color: 'red' },
+          { width: 100, height: 50, color: 'blue' },
+        ]);
+      },
+    );
+
+    it('crops every frame', async () => {
+      expect(await frames(await output('?w=60&h=60&fit=cover&format=webp'))).toEqual([
+        { width: 60, height: 60, color: 'red' },
+        { width: 60, height: 60, color: 'blue' },
+      ]);
+    });
+
+    it('reports one frame in metadata, with the frame count', async () => {
+      const code = await moduleLoader.default.call(
+        context('?w=100&format=webp&as=metadata:width;height;pages', animated),
+      );
+      expect(exported(code as string)).toEqual({ width: 100, height: 50, pages: 2 });
+    });
+
+    it('keeps the first frame, and warns, for a format without frames', async () => {
+      warnings = [];
+      expect(await frames(await output('?w=100&format=png'))).toEqual([
+        { width: 100, height: 50, color: 'red' },
+      ]);
+      expect(warnings).toEqual([
+        "anim.gif?w=100&format=png: the source has 2 frames, but png can't be animated, so only " +
+          'the first frame is kept. Use format=webp or format=gif to keep the animation.',
+      ]);
+    });
+
+    it('does not warn for a still source', async () => {
+      warnings = [];
+      await runModule('?w=100&format=png');
+      expect(warnings).toEqual([]);
     });
   });
 

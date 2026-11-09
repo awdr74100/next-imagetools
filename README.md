@@ -115,6 +115,8 @@ import placeholder from './photo.jpg?w=24&blur=2&format=webp&inline';
 // "data:image/webp;base64,…"
 ```
 
+Animated GIF and WebP sources keep their animation when the output is `gif` or `webp`; every frame is resized and cropped alike. Other formats can't hold frames, so they keep the first one, and the build warns.
+
 ### Multiple variants
 
 Separate values with `;` to get one image per value. With several directives, you get every combination:
@@ -244,6 +246,17 @@ export function Zoom() {
   return open ? <img src={zoomed} alt="" /> : <button onClick={() => setOpen(true)}>Zoom</button>;
 }
 ```
+
+### Deploying
+
+Generated images are emitted with the rest of Next.js' static files, so they follow your deployment settings without extra configuration:
+
+- **`basePath`** — URLs include it: `/docs/_next/static/media/…`.
+- **`assetPrefix`** — URLs carry the prefix, like Next.js' own scripts, so a CDN in front of `/_next/static` serves the images too.
+- **`output: 'standalone'`** — the images live in `.next/static`. Copy it into the standalone output as [Next.js documents](https://nextjs.org/docs/app/api-reference/config/next-config-js/output#automatically-copying-traced-files); nothing else is needed.
+- **`output: 'export'`** — see [Static export](#static-export).
+
+URLs are percent-encoded, so source files with spaces or non-ASCII characters in their names work in `src` and `srcset` alike. (A `#` in a file name can't be imported with Turbopack at all — it starts a URL fragment.)
 
 ## Configuration
 
