@@ -2,6 +2,8 @@ import Image from 'next/image';
 
 import heroUrl from '../images/hero.jpg?w=400&format=webp&imagetools';
 import heroGallery from '../images/hero.jpg?w=300;600&format=webp&imagetools-gallery';
+// the source is 1600px wide: 3000 clamps to 1600, and the import must still be an array of two
+import heroClamped from '../images/hero.jpg?w=1600;3000&format=webp&imagetools-gallery';
 import heroSrcset from '../images/hero.jpg?w=300;600;900&format=webp&as=srcset';
 import heroPicture from '../images/hero.jpg?w=400;800&format=avif;webp;jpg&as=picture';
 import heroMeta from '../images/hero.jpg?w=500&format=webp&as=metadata&imagetools';
@@ -56,6 +58,7 @@ export default function ImageGrid({ mode }: { mode: string }) {
           __html: JSON.stringify({
             heroUrl,
             heroGallery,
+            heroClamped,
             heroSrcset,
             heroPicture,
             heroMeta,

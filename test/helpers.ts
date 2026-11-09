@@ -160,6 +160,8 @@ function expectedImages(html: string): Expected[] {
     { label: 'url', url: data.heroUrl, width: 400, format: 'webp' },
     { label: 'gallery 300w', url: data.heroGallery[0], width: 300, format: 'webp' },
     { label: 'gallery 600w', url: data.heroGallery[1], width: 600, format: 'webp' },
+    { label: 'clamped 1/2', url: data.heroClamped[0], width: 1600, format: 'webp' },
+    { label: 'clamped 2/2', url: data.heroClamped[1], width: 1600, format: 'webp' },
     ...fromSrcset('srcset', data.heroSrcset, 'webp'),
     ...fromSrcset('picture avif', data.heroPicture.sources.avif, 'avif'),
     ...fromSrcset('picture webp', data.heroPicture.sources.webp, 'webp'),
@@ -176,6 +178,8 @@ function expectedImages(html: string): Expected[] {
   ];
   expect(parseSrcset(data.heroSrcset).map(s => s.width)).toEqual([300, 600, 900]);
   expect(data.heroGallery, '&imagetools-gallery yields an array').toHaveLength(2);
+  expect(data.heroClamped, 'values clamped to one size keep the array shape').toHaveLength(2);
+  expect(data.heroClamped[0], 'identical variants share one file').toBe(data.heroClamped[1]);
   expect(typeof data.heroUrl, '&imagetools yields a single URL').toBe('string');
   expect(data.heroPicture.img).toMatchObject({ w: 800, h: 500 });
   expect(data.heroMeta).toMatchObject({ width: 500, height: 313, format: 'webp' });

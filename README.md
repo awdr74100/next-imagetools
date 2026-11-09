@@ -98,7 +98,7 @@ The most common ones:
 
 See the [imagetools directive reference](https://github.com/JonasKruckenberg/imagetools/blob/main/docs/directives.md) for every directive and its values.
 
-Widths and heights larger than the source are reduced to the source size, so a 1600px photo never comes out at 3000px. Add `allowUpscale=true` to scale up anyway.
+Widths and heights larger than the source are reduced to the source size, so a 1600px photo never comes out at 3000px. Add `allowUpscale=true` to scale up anyway. When that makes two variants identical — `w=1600;3000` on a 1600px photo — both are kept (they share one file) and the build logs a warning, so the [shape of the import](#multiple-variants) doesn't change with the source.
 
 ### Multiple variants
 
@@ -108,6 +108,8 @@ Separate values with `;` to get one image per value. With several directives, yo
 // 3 widths × 2 formats = 6 images
 import urls from './photo.jpg?w=400;800;1200&format=avif;webp';
 ```
+
+The number of images is always the product of the value counts in the query, so you can tell from the query alone whether an import gives one value or an array. It never depends on the source file: swapping in a smaller photo can't turn an array into a string.
 
 ### Output formats
 
@@ -167,7 +169,7 @@ import img from './photo.jpg?w=400;800&as=img'; // Img
 import picture from './photo.jpg?w=400;800&format=avif;webp&as=picture'; // Picture
 ```
 
-For the URL and metadata outputs, whether you get one value or an array depends on how many images the query produces, so end the query with a marker that says which:
+For the URL and metadata outputs, whether you get one value or an array depends on how many images the query asks for — more than one value anywhere means an array — so end the query with a marker that says which:
 
 ```ts
 import url from './photo.jpg?w=800&format=webp&imagetools'; // string
@@ -242,6 +244,8 @@ Options must be JSON-serializable: Turbopack runs loaders in separate worker pro
 ## Migrating from vite-imagetools
 
 Directives, output formats and the `&imagetools` type markers are the same, so most imports move over unchanged. Replace the Vite plugin with `withImagetools` in `next.config.ts`, and swap your hand-written module declarations for the [client types](#typescript).
+
+One deliberate difference: when values clamp to the source size and become identical, vite-imagetools merges them, so `w=1600;3000` on a 1600px source gives a single URL instead of an array. Here the array keeps both entries, so the shape of an import [follows from its query](#multiple-variants).
 
 Not supported yet:
 

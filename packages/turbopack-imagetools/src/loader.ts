@@ -22,9 +22,29 @@ import { MARKER, cacheDirOf, hash, processImage, type LoaderContext } from './sh
 const PLACEHOLDER = (i: number) => `__TPIT_${i}__`;
 const TYPE_MARKERS = ['imagetools', 'imagetools-gallery'];
 
-// "300;9000" against a 1600px source → "300;1600"
+// "300;9000" against a 1600px source → "300;1600". Values that clamp to the same size are kept,
+// not merged: how many images an import produces — and so whether it gives a value or an array —
+// must follow from the query alone, not from the size of the file it points at. (vite-imagetools
+// merges them, so a smaller source can turn an array into a single value.)
 const clamp = (s: string, n: number) =>
-  [...new Set(s.split(';').map(d => (Number.parseInt(d) <= n ? d : String(n))))].join(';');
+  s
+    .split(';')
+    .map(d => (Number.parseInt(d) <= n ? d : String(n)))
+    .join(';');
+
+// Output formats that always produce one value; identical variants would only repeat entries
+// (and a srcset may not list the same width twice), so they are dropped before formatting.
+const SINGLE_VALUE_FORMATS = new Set(['srcset', 'img', 'picture']);
+
+function uniqueByConfig(images: ProcessedImage[]): ProcessedImage[] {
+  const seen = new Set<string>();
+  return images.filter(image => {
+    const key = JSON.stringify(image.config);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 // loader-runner awaits a returned promise, so no this.async() is needed
 export default async function imagetoolsLoader(this: LoaderContext): Promise<string> {
@@ -40,13 +60,27 @@ export default async function imagetoolsLoader(this: LoaderContext): Promise<str
   const source = await readFile(pathname);
   const sourceHash = hash([source]);
 
-  // same as vite-imagetools: clamp w/h to the intrinsic size unless allowUpscale
-  const w = directives.get('w');
-  const h = directives.get('h');
-  if (directives.get('allowUpscale') !== 'true' && (w || h)) {
+  // clamp w/h to the intrinsic size unless allowUpscale
+  if (directives.get('allowUpscale') !== 'true' && (directives.has('w') || directives.has('h'))) {
     const meta = await sharp(source).metadata();
-    if (w) directives.set('w', clamp(w, meta.width));
-    if (h) directives.set('h', clamp(h, meta.height));
+    for (const [key, intrinsic] of [
+      ['w', meta.width],
+      ['h', meta.height],
+    ] as const) {
+      const before = directives.get(key);
+      if (!before) continue;
+      const after = clamp(before, intrinsic);
+      directives.set(key, after);
+      if (new Set(after.split(';')).size < new Set(before.split(';')).size) {
+        this.emitWarning?.(
+          new Error(
+            `${path.basename(pathname)}: ${key}=${before} goes beyond the source's ${intrinsic}px, ` +
+              `so some variants come out identical. Remove the extra values, or add ` +
+              `allowUpscale=true to scale up.`,
+          ),
+        );
+      }
+    }
   }
 
   const configs = resolveConfigs(extractEntries(directives), builtinOutputFormats);
@@ -92,7 +126,8 @@ export default async function imagetoolsLoader(this: LoaderContext): Promise<str
   const outputFormat =
     (as && builtinOutputFormats[as as keyof typeof builtinOutputFormats]) || null;
   const format = outputFormat ? outputFormat(args ? args.split(';') : undefined) : urlFormat();
-  const result = await format(outputs);
+  const formatted = as && SINGLE_VALUE_FORMATS.has(as) ? uniqueByConfig(outputs) : outputs;
+  const result = await format(formatted);
 
   // JSON is valid JS; splice each placeholder out of its string literal and
   // into a reference to the imported asset URL.
