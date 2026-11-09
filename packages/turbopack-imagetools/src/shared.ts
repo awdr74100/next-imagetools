@@ -13,6 +13,8 @@ import {
 } from 'imagetools-core';
 import sharp, { type Metadata } from 'sharp';
 
+import { version } from '../package.json';
+
 /** Options shared by both loaders; must stay JSON-serializable (Turbopack loader options). */
 export interface LoaderOptions {
   cacheDir?: string;
@@ -76,12 +78,29 @@ interface ProcessArgs {
 const inflight = new Map<string, Promise<ProcessedResult>>();
 
 /**
+ * Everything besides the config and the source that decides the encoded bytes: this package
+ * (transform behavior), and sharp with every codec it bundles (`sharp.versions` lists libvips,
+ * mozjpeg, libwebp, aom, …). Upgrading any of them must not serve images encoded by the old one.
+ */
+export const ENGINE = JSON.stringify({ package: version, sharp: sharp.versions });
+
+export function cacheKey(
+  config: ImageConfig,
+  sourceHash: string,
+  removeMetadata: boolean,
+  engine = ENGINE,
+): string {
+  return hash([JSON.stringify(config), sourceHash, String(removeMetadata), engine]);
+}
+
+/**
  * Runs one resolved config through imagetools-core, memoized in-process and on disk. Both the
  * module loader (needs dimensions) and the asset loader (needs bytes) call this. The cache key
- * includes the source hash, so editing the source never hits a stale entry.
+ * covers the source, the config, the options that change the output and the engine versions, so
+ * editing any of them never hits a stale entry.
  */
 export function processImage(args: ProcessArgs): Promise<ProcessedResult> {
-  const id = hash([JSON.stringify(args.config), args.sourceHash]);
+  const id = cacheKey(args.config, args.sourceHash, args.removeMetadata);
   let p = inflight.get(id);
   if (!p) {
     p = run(id, args);

@@ -23,15 +23,25 @@ beforeAll(async () => {
 });
 afterAll(() => rmSync(cacheDir, { recursive: true, force: true }));
 
-const context = (resourceQuery: string, resourcePath = HERO) => ({
+let warnings: string[] = [];
+const context = (resourceQuery: string, resourcePath = HERO, options: object = {}) => ({
   resourcePath,
   resourceQuery,
   rootContext: path.dirname(HERO),
-  getOptions: () => ({ cacheDir }),
-  emitWarning: () => {},
+  getOptions: () => ({ cacheDir, ...options }),
+  emitWarning: (e: Error) => warnings.push(e.message),
 });
 
-const runModule = (query: string) => moduleLoader.default.call(context(query)) as Promise<string>;
+const runModule = (query: string, options?: object) =>
+  moduleLoader.default.call(context(query, HERO, options)) as Promise<string>;
+
+/** The exported value as JSON, with each asset reference replaced by its import index. */
+const exported = (code: string): unknown =>
+  JSON.parse(
+    code
+      .match(/const __tpit_value = (.*);\n/)![1]!
+      .replaceAll(/" \+ __tpit_url\(__tpit_(\d+)\) \+ "/g, '#$1'),
+  );
 
 describe('module loader', () => {
   it('exposes the loader-runner shape (default + raw)', () => {
@@ -69,6 +79,44 @@ describe('module loader', () => {
     expect(code).toMatch(/"sources":\{"avif":"[^}]*","webp":"[^}]*"\}/);
     expect(code).not.toMatch(/"sources":\{[^}]*"jpe?g"/);
     expect(code).toMatch(/"img":\{"src":"" \+ __tpit_url\(__tpit_2\)/);
+  });
+
+  describe('return shape follows the query, not the source size', () => {
+    // the fixture source is 1600px wide, so 3000 clamps to 1600
+    it('keeps an array when values clamp to the same size', async () => {
+      warnings = [];
+      const value = exported(await runModule('?w=1600;3000&format=webp'));
+      expect(value).toEqual(['#0', '#1']);
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toMatch(/w=1600;3000 goes beyond the source's 1600px/);
+    });
+
+    it('keeps metadata an array too', async () => {
+      const value = exported(await runModule('?w=1600;3000&format=webp&as=metadata:width'));
+      expect(value).toEqual([{ width: 1600 }, { width: 1600 }]);
+    });
+
+    it('lists each size once in single-value formats', async () => {
+      expect(exported(await runModule('?w=1600;3000&format=webp&as=srcset'))).toBe('#0 1600w');
+      const picture = exported(await runModule('?w=800;1600;3000&format=webp;jpg&as=picture'));
+      expect(picture).toMatchObject({ sources: { webp: '#0 800w, #2 1600w' } });
+    });
+
+    it('warns only when clamping actually merged values', async () => {
+      warnings = [];
+      await runModule('?w=400;3000&format=webp');
+      await runModule('?w=400;800&format=webp');
+      expect(warnings).toEqual([]);
+    });
+  });
+
+  it('caches separately per removeMetadata setting', async () => {
+    const before = readdirSync(cacheDir).length;
+    await runModule('?w=123&format=webp');
+    const afterFirst = readdirSync(cacheDir).length;
+    await runModule('?w=123&format=webp', { removeMetadata: false });
+    expect(afterFirst).toBe(before + 1);
+    expect(readdirSync(cacheDir)).toHaveLength(afterFirst + 1);
   });
 
   it('clamps widths to the source unless allowUpscale', async () => {
