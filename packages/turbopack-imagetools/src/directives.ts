@@ -3,7 +3,11 @@
 // original image or the default output. These checks turn those into messages that say what
 // went wrong and where.
 
-/** Directives imagetools-core v12 reads, plus the ones this package handles itself. */
+/**
+ * Directives imagetools-core v12 reads, plus the ones this package handles itself. Kept by hand
+ * because core's own `parametersUsed` is always empty for the built-ins; drop it once core reports
+ * usage (JonasKruckenberg/imagetools#966).
+ */
 export const KNOWN_DIRECTIVES = new Set([
   // resizing
   'w',
