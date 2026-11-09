@@ -11,4 +11,6 @@ const nextConfig: NextConfig = {
   pageExtensions: isExport ? ['static.tsx'] : ['static.tsx', 'dynamic.tsx'],
 };
 
-export default withImagetools(nextConfig);
+export default withImagetools(nextConfig, {
+  presets: { thumb: 'w=120&format=webp' },
+});

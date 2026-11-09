@@ -110,6 +110,47 @@ describe('module loader', () => {
     });
   });
 
+  describe('defaultDirectives and presets', () => {
+    const meta = async (query: string, options: object) =>
+      exported(await runModule(`${query}&as=metadata:width;format`, options));
+
+    it('applies defaultDirectives, as a query string or an object', async () => {
+      expect(await meta('?w=300', { defaultDirectives: 'format=webp' })).toEqual({
+        width: 300,
+        format: 'webp',
+      });
+      expect(await meta('?w=300', { defaultDirectives: { format: 'avif' } })).toMatchObject({
+        format: 'avif',
+      });
+    });
+
+    it('lets the query override a default', async () => {
+      expect(await meta('?w=300&format=png', { defaultDirectives: 'format=webp' })).toMatchObject({
+        format: 'png',
+      });
+    });
+
+    it('expands preset=<name>', async () => {
+      const presets = { thumb: 'w=120&format=webp' };
+      expect(await meta('?preset=thumb', { presets })).toEqual({ width: 120, format: 'webp' });
+    });
+
+    it('layers defaults, then the preset, then the query', async () => {
+      const options = {
+        defaultDirectives: 'format=jpg&w=999',
+        presets: { thumb: { w: '120', format: 'webp' } },
+      };
+      expect(await meta('?preset=thumb&w=200', options)).toEqual({ width: 200, format: 'webp' });
+    });
+
+    it('fails the build on an unknown preset, listing the defined ones', async () => {
+      await expect(runModule('?preset=nope', { presets: { thumb: 'w=120' } })).rejects.toThrow(
+        'Unknown imagetools preset "nope". Defined presets: thumb.',
+      );
+      await expect(runModule('?preset=nope')).rejects.toThrow('No presets are defined.');
+    });
+  });
+
   describe('named exports', () => {
     const names = (code: string) => [...code.matchAll(/^export const (\w+) = /gm)].map(m => m[1]);
 

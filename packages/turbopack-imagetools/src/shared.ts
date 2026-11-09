@@ -16,12 +16,22 @@ import sharp, { type Metadata } from 'sharp';
 import { version } from '../package.json';
 
 /** Options shared by both loaders; must stay JSON-serializable (Turbopack loader options). */
+/** A set of directives, as a query string (`'w=400&format=webp'`) or an object. */
+export type Directives = string | Record<string, string>;
+
 export interface LoaderOptions {
   cacheDir?: string;
   removeMetadata?: boolean;
   /** Also export the keys of object results by name (default: true). */
   namedExports?: boolean;
+  /** Applied to every import with a query, beneath the directives the import sets itself. */
+  defaultDirectives?: Directives;
+  /** Named directive sets, applied with `preset=<name>` in an import's query. */
+  presets?: Record<string, Directives>;
 }
+
+export const toParams = (directives: Directives | undefined): URLSearchParams | undefined =>
+  directives === undefined ? undefined : new URLSearchParams(directives);
 
 /** The subset of the webpack loader context that Turbopack provides and these loaders use. */
 export interface LoaderContext {

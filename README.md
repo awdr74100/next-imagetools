@@ -250,13 +250,41 @@ export default withImagetools(nextConfig, {
 
 Options must be JSON-serializable: Turbopack runs loaders in separate worker processes and passes their options as data.
 
+### Presets and defaults
+
+Give a set of directives a name, and use it with `preset=<name>`:
+
+```ts
+export default withImagetools(nextConfig, {
+  presets: {
+    hero: 'w=640;1280;1920&format=avif;webp&as=picture',
+    thumb: { w: '160', h: '160', fit: 'cover', format: 'webp' },
+  },
+  defaultDirectives: 'quality=80',
+});
+```
+
+```ts
+import hero from './banner.jpg?preset=hero';
+import avatar from './me.jpg?preset=thumb&imagetools';
+```
+
+- **`presets`** — named directive sets, as a query string or an object. An unknown preset name fails the build.
+- **`defaultDirectives`** — applied to every import that has a query (imports without one are left to Next.js).
+
+The directives of an import are layered: `defaultDirectives` first, then the preset, then the import's own query — so `?preset=thumb&w=200` uses the preset with a different width. The import still shows which preset it uses, so its transforms stay traceable from the code.
+
+Prefer single values in `defaultDirectives` (`quality`, `effort`, a single `format`). A list such as `format=avif;webp` multiplies the images of _every_ import, turning single values into arrays; the build warns when the config loads.
+
 ## Migrating from vite-imagetools
 
 Directives, output formats and the `&imagetools` type markers are the same, so most imports move over unchanged. Replace the Vite plugin with `withImagetools` in `next.config.ts`, and swap your hand-written module declarations for the [client types](#typescript).
 
 One deliberate difference: when values clamp to the source size and become identical, vite-imagetools merges them, so `w=1600;3000` on a 1600px source gives a single URL instead of an array. Here the array keeps both entries, so the shape of an import [follows from its query](#multiple-variants).
 
-Not supported yet: the `inline` directive, and the `include`, `exclude`, `defaultDirectives`, `extendTransforms`, `extendOutputFormats` and `resolveConfigs` options.
+`defaultDirectives` takes directives as data (a query string or an object) rather than a function. For per-image presets, use [`presets`](#presets-and-defaults) — `?preset=hero` instead of a custom `?hero` directive.
+
+Not supported yet: the `inline` directive, and the `include`, `exclude`, `extendTransforms`, `extendOutputFormats` and `resolveConfigs` options.
 
 ## How it works
 
