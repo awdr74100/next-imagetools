@@ -236,14 +236,17 @@ Pass options as the second argument:
 
 ```ts
 export default withImagetools(nextConfig, {
-  cacheDir: 'node_modules/.cache/turbopack-imagetools',
+  cache: { dir: 'node_modules/.cache/turbopack-imagetools', retention: 60 * 60 * 24 * 30 },
   removeMetadata: true,
   namedExports: true,
   extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'gif', 'tiff', 'heif'],
 });
 ```
 
-- **`cacheDir`** — where processed images are cached between builds, relative to the project root. Default: `node_modules/.cache/turbopack-imagetools`. Cache it in CI to speed up builds.
+- **`cache`** — the on-disk cache of processed images:
+  - `dir` — where, relative to your Next.js app. Default: `node_modules/.cache/turbopack-imagetools`. Persist it in CI to speed up builds.
+  - `retention` — remove entries that haven't been used for this many seconds. Default: keep everything.
+  - `enabled` — set to `false` to process every image on every build. Default: `true`.
 - **`removeMetadata`** — strip EXIF, ICC, XMP and other private metadata from generated images. Default: `true`.
 - **`namedExports`** — also export the keys of object results by name, as in `import { width } from './a.jpg?as=metadata'`. Default: `true`.
 - **`extensions`** — source file extensions handled when imported with a query. Default: `jpg`, `jpeg`, `png`, `webp`, `avif`, `gif`, `tiff`, `heif`.

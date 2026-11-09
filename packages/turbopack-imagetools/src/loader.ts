@@ -20,7 +20,7 @@ import sharp from 'sharp';
 
 import {
   MARKER,
-  cacheDirOf,
+  prepareCache,
   hash,
   processImage,
   toParams,
@@ -116,7 +116,7 @@ export default async function imagetoolsLoader(this: LoaderContext): Promise<str
     return `export { default } from ${JSON.stringify(`./${path.basename(pathname)}`)};\n`;
   }
 
-  const cacheDir = cacheDirOf(this, options);
+  const cacheDir = await prepareCache(this, options);
   const directives = resolveDirectives(new URLSearchParams(this.resourceQuery), options);
 
   const source = await readFile(pathname);
