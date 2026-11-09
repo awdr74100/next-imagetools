@@ -13,16 +13,21 @@ type RuleCollection = TurbopackRules[string];
 const DEFAULT_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'gif', 'tiff', 'heif'];
 const OUTPUT_EXTENSIONS = ['jpg', 'png', 'webp', 'avif', 'gif', 'tiff', 'heif'];
 
-function imagetoolsRules(options: LoaderOptions): RuleCollection {
+function imagetoolsRules(options: LoaderOptions, sourceExt: string): RuleCollection {
   return [
-    // internal per-image import emitted by the module loader → encoded bytes as an asset,
-    // renamed so the emitted file carries the output format's extension
-    ...OUTPUT_EXTENSIONS.map(ext => ({
-      condition: { query: new RegExp(`[?&]tpit_ext=${ext}(?=&|$)`) },
-      loaders: [{ loader: 'turbopack-imagetools/asset-loader', options: { ...options } }],
-      as: `*.${ext}`,
-      type: 'asset' as const,
-    })),
+    // internal per-image import emitted by the module loader → encoded bytes as an asset.
+    // When the output format differs from the source's, the module is renamed so the emitted
+    // file carries the right extension. Turbopack's `as` replaces `*` with the whole file name,
+    // so that gives `hero.jpg.webp`; a same-format output skips the rename and stays `hero.jpg`.
+    ...OUTPUT_EXTENSIONS.map(ext => {
+      const rule: RuleItem = {
+        condition: { query: new RegExp(`[?&]tpit_ext=${ext}(?=&|$)`) },
+        loaders: [{ loader: 'turbopack-imagetools/asset-loader', options: { ...options } }],
+        type: 'asset',
+      };
+      if (ext !== sourceExt) rule.as = `*.${ext}`;
+      return rule;
+    }),
     // any other import with a query goes through imagetools
     {
       condition: { all: [{ query: /^\?.+/ }, { not: { query: /[?&]tpit=/ } }] },
@@ -62,7 +67,7 @@ export function withImagetools(
   for (const ext of extensions) {
     const key = `*.${ext}`;
     const existing = rules[key];
-    const ours = toRules(imagetoolsRules(loaderOptions));
+    const ours = toRules(imagetoolsRules(loaderOptions, ext));
     rules[key] = existing === undefined ? ours : [...toRules(existing), ...ours];
   }
   return { ...nextConfig, turbopack: { ...nextConfig.turbopack, rules } };

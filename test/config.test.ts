@@ -57,6 +57,23 @@ describe('withImagetools', () => {
     }
   });
 
+  it('renames an output only when its format differs from the source', () => {
+    const rules = rulesFor(withImagetools({}), '*.jpg')!;
+    const assetRule = (ext: string) =>
+      rules.find(r =>
+        String((r.condition as { query?: RegExp }).query).includes(`tpit_ext=${ext}(`),
+      );
+    expect(assetRule('jpg')?.as).toBeUndefined();
+    expect(assetRule('webp')?.as).toBe('*.webp');
+    // .jpeg sources output .jpg, which is a different extension
+    const jpegRules = rulesFor(withImagetools({}), '*.jpeg')!;
+    expect(
+      jpegRules.find(r =>
+        String((r.condition as { query?: RegExp }).query).includes('tpit_ext=jpg('),
+      )?.as,
+    ).toBe('*.jpg');
+  });
+
   it('only handles the configured extensions', () => {
     const rules = withImagetools({}, { extensions: ['png'] }).turbopack?.rules ?? {};
     expect(Object.keys(rules)).toEqual(['*.png']);
