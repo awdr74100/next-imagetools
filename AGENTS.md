@@ -16,7 +16,8 @@ Guidance for anyone — human or agent — working in this repository. Read it b
   - `src/config.ts` / `src/core.ts` — the `turbopack-imagetools/config` and `/core` entries for config files.
   - `client.d.ts` — ambient module types (`turbopack-imagetools/client`).
 - `playground` — a Next.js app for trying things by hand (`pnpm playground`).
-- `test` — the suites. `test/fixtures/next-app` is the app they build, start and inspect; the suites rewrite its source image and switch its routes between modes, so don't treat it as a demo.
+- `test` — the unit suites (`*.test.ts`), which call the built loaders and `withImagetools()` directly.
+- `test/e2e` — the end-to-end suites. `test/e2e/fixtures/next-app` is the app they build, start and inspect; the suites rewrite its source image and switch its routes between modes, so don't treat it as a demo.
 - `scripts` — release, English-only check, prepack doc copy.
 
 ## How it works
@@ -51,13 +52,14 @@ pnpm test                  # every suite; needs `pnpm build` first
 pnpm playground            # build + next dev in playground/
 ```
 
-Run single suites with `pnpm vitest run test/<name>.test.ts`. The unit suites (`loader`, `config`, `cache-key`) take seconds; `build`, `dev`, `modes` and `playground` drive real Next.js builds and servers and take minutes — and a fair amount of memory.
+`pnpm test:unit` runs the unit project (seconds, no Next.js); `pnpm test:e2e` the e2e project (`build`, `dev`, `modes`, `playground`), which drives real Next.js builds, servers and Chromium — minutes, and a fair amount of memory. Run one file with `pnpm vitest run <path>`.
 
 ## Testing
 
-- **Tests run against `dist`.** The fixture consumes the built package, the way users do. Rebuild after changing the package; the suites refuse to run without a build.
-- **Test the cache states, not just the happy path.** `test/build.test.ts` and `test/dev.test.ts` walk through cold, warm, partially cleared and edited states in order; extend them rather than adding one-off checks.
-- **Every rendering mode.** `test/modes.test.ts` checks static, SSR, Edge, CSR, the Pages Router and static export in Chromium. A new import shape belongs in the fixture's `ImageGrid` and `expectedImages`, so every mode checks it.
+- **Unit or e2e?** Anything observable from the loader's output or `withImagetools()`'s config is a unit test; the unit suite makes its own source image in a temp dir and never touches the fixture. Whatever depends on Turbopack itself — resolution, emitting, caching, rendering modes, `next dev` — needs e2e.
+- **Tests run against `dist`.** Both projects load the built package, the way users do. Rebuild after changing the package; the suites refuse to run without a build.
+- **Test the cache states, not just the happy path.** `test/e2e/build.test.ts` and `test/e2e/dev.test.ts` walk through cold, warm, partially cleared and edited states in order; extend them rather than adding one-off checks.
+- **Every rendering mode.** `test/e2e/modes.test.ts` checks static, SSR, Edge, CSR, the Pages Router and static export in Chromium. A new import shape belongs in the fixture's `ImageGrid` and `expectedImages`, so every mode checks it.
 - **Prove a test can fail.** For a fix, break the code back (or patch `dist`) and watch the new test fail before trusting it.
 - **README examples are code.** `test/loader.test.ts` runs the config-file example from the README verbatim; keep it that way when editing examples.
 - Failing build, dev and mode tests print the Next.js server log. See issue #4 for an intermittent dev failure still being investigated.

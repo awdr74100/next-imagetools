@@ -1,6 +1,6 @@
 packages:
   - 'packages/*'
-  - 'test/fixtures/*'
+  - 'test/e2e/fixtures/*'
   - 'playground'
 
 onlyBuiltDependencies:

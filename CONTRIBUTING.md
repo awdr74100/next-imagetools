@@ -38,7 +38,8 @@ It builds the package and starts `next dev` in `playground/`. Rebuild the packag
 
 - `packages/turbopack-imagetools` — the published package
 - `playground` — a Next.js app for trying things by hand
-- `test` — the test suites; `test/fixtures/next-app` is the app they build, start and inspect. It is not meant for browsing: the suites rewrite its source image and switch its routes between modes.
+- `test` — unit tests, which call the built loaders directly (seconds)
+- `test/e2e` — end-to-end tests with real Next.js builds, servers and Chromium (minutes); `test/e2e/fixtures/next-app` is the app they build, start and inspect. It is not meant for browsing: the suites rewrite its source image and switch its routes between modes.
 
 ## Development workflow
 
@@ -48,8 +49,10 @@ The canonical checks — the same gates CI enforces on every push and PR — run
 pnpm check && pnpm build && pnpm test
 ```
 
-- **Tests run against the built package.** The fixture app in `test/fixtures/next-app` consumes `packages/turbopack-imagetools/dist`, the way users do, so run `pnpm build` after changing the package. The suites refuse to run without a build.
-- **Test the cache states, not just the happy path.** A change to the loaders should hold up cold, warm, with only `.next` or only the imagetools cache cleared, after the source image is edited, and across a `next dev` restart. `test/build.test.ts` and `test/dev.test.ts` walk through those states; extend them rather than adding a one-off check.
+While iterating, `pnpm test:unit` runs only the unit tests and finishes in seconds; `pnpm test:e2e` runs only the end-to-end tests.
+
+- **Tests run against the built package.** Both suites, and the fixture app in `test/e2e/fixtures/next-app`, consume `packages/turbopack-imagetools/dist`, the way users do, so run `pnpm build` after changing the package. The suites refuse to run without a build.
+- **Test the cache states, not just the happy path.** A change to the loaders should hold up cold, warm, with only `.next` or only the imagetools cache cleared, after the source image is edited, and across a `next dev` restart. `test/e2e/build.test.ts` and `test/e2e/dev.test.ts` walk through those states; extend them rather than adding a one-off check.
 - **No git hooks.** Formatting and lint are enforced by CI, so run `pnpm format` before committing.
 - **English only** in code, comments, docs and fixture copy (`pnpm lint:english`).
 

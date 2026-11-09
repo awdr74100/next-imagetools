@@ -1,6 +1,7 @@
 // Calls the built loaders directly with a minimal loader context, without Next.js. Fast checks of
 // what the loader emits; the build/dev/mode suites cover what Turbopack does with it.
 import {
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   readdirSync,
@@ -12,11 +13,10 @@ import {
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-
-import { BLUE, HERO, writeHero } from './helpers';
 
 const require = createRequire(import.meta.url);
 const dist = path.resolve(import.meta.dirname, '../packages/turbopack-imagetools/dist');
@@ -24,12 +24,21 @@ type Loader = { default: (this: object) => Promise<string | Buffer>; raw?: boole
 const moduleLoader = require(path.join(dist, 'loader.cjs')) as Loader;
 const assetLoader = require(path.join(dist, 'asset-loader.cjs')) as Loader;
 
-let cacheDir: string;
+// Each run gets its own source image and cache, so the unit suite never touches the e2e fixture.
+const workDir = mkdtempSync(path.join(tmpdir(), 'tpit-unit-'));
+const HERO = path.join(workDir, 'images', 'hero.jpg');
+const cacheDir = path.join(workDir, 'cache');
 beforeAll(async () => {
-  await writeHero(BLUE);
-  cacheDir = mkdtempSync(path.join(tmpdir(), 'tpit-'));
+  mkdirSync(path.dirname(HERO), { recursive: true });
+  mkdirSync(cacheDir, { recursive: true });
+  // 1600x1000 and blue, which the clamping and color assertions below rely on
+  await sharp({
+    create: { width: 1600, height: 1000, channels: 3, background: { r: 30, g: 120, b: 200 } },
+  })
+    .jpeg()
+    .toFile(HERO);
 });
-afterAll(() => rmSync(cacheDir, { recursive: true, force: true }));
+afterAll(() => rmSync(workDir, { recursive: true, force: true }));
 
 let warnings: string[] = [];
 const context = (resourceQuery: string, resourcePath = HERO, options: object = {}) => ({
@@ -324,9 +333,13 @@ describe('module loader', () => {
       const readme = readFileSync(path.resolve(import.meta.dirname, '../README.md'), 'utf8');
       const example = readme.match(/```js\n\/\/ imagetools\.config\.mjs\n([\s\S]*?)```/)?.[1];
       expect(example, 'the README example').toBeTruthy();
-      // inside the fixture app, so `turbopack-imagetools/config` resolves like in a user's app
-      const configFile = path.join(path.dirname(HERO), '..', `readme-example-${process.pid}.mjs`);
-      writeFileSync(configFile, example!);
+      // point the package import at the build, which is what it resolves to in a user's app
+      const configFile = path.join(workDir, 'readme-example.mjs');
+      const configEntry = pathToFileURL(path.join(dist, 'config.mjs')).href;
+      writeFileSync(
+        configFile,
+        example!.replace("'turbopack-imagetools/config'", `'${configEntry}'`),
+      );
       try {
         const sizes = exported(await runModule('?w=300;400&as=sizes', { configFile }));
         expect(sizes).toEqual([
