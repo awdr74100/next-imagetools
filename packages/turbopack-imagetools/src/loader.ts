@@ -31,6 +31,12 @@ import {
 const PLACEHOLDER = (i: number) => `__TPIT_${i}__`;
 const TYPE_MARKERS = ['imagetools', 'imagetools-gallery'];
 
+// For data URLs; formats not listed fall back to `image/<format>`.
+const MIME_TYPES: Record<string, string> = {
+  jpg: 'image/jpeg',
+  svg: 'image/svg+xml',
+};
+
 // "300;9000" against a 1600px source → "300;1600". Values that clamp to the same size are kept,
 // not merged: how many images an import produces — and so whether it gives a value or an array —
 // must follow from the query alone, not from the size of the file it points at. (vite-imagetools
@@ -118,6 +124,10 @@ export default async function imagetoolsLoader(this: LoaderContext): Promise<str
 
   const cacheDir = await prepareCache(this, options);
   const directives = resolveDirectives(new URLSearchParams(this.resourceQuery), options);
+  // `inline` changes how the image is delivered, not the image, so it stays out of the configs:
+  // an inlined and a regular import of the same variant share one cache entry
+  const inline = directives.has('inline');
+  directives.delete('inline');
 
   const source = await readFile(pathname);
   const sourceHash = hash([source]);
@@ -154,7 +164,7 @@ export default async function imagetoolsLoader(this: LoaderContext): Promise<str
     },
   };
 
-  const assetQueries: string[] = [];
+  const assetQueries: (string | undefined)[] = [];
   const outputs = await Promise.all(
     configs.map(async (config, i): Promise<ProcessedImage> => {
       const r = await processImage({
@@ -167,10 +177,16 @@ export default async function imagetoolsLoader(this: LoaderContext): Promise<str
         removeMetadata: options.removeMetadata !== false,
       });
       const ext = r.transforms.format === 'jpeg' ? 'jpg' : r.transforms.format;
-      assetQueries[i] =
-        `?${MARKER}=${sourceHash.slice(0, 12)}&${MARKER}_ext=${ext}&${new URLSearchParams(config)}`;
+      let src: string;
+      if (inline) {
+        src = `data:${MIME_TYPES[ext ?? ''] ?? `image/${ext}`};base64,${r.data.toString('base64')}`;
+      } else {
+        assetQueries[i] =
+          `?${MARKER}=${sourceHash.slice(0, 12)}&${MARKER}_ext=${ext}&${new URLSearchParams(config)}`;
+        src = PLACEHOLDER(i);
+      }
       return {
-        src: PLACEHOLDER(i),
+        src,
         image: sharp(r.data),
         config,
         info: {
@@ -198,8 +214,10 @@ export default async function imagetoolsLoader(this: LoaderContext): Promise<str
     '" + __tpit_url(__tpit_$1) + "',
   );
   const self = `./${path.basename(pathname)}`;
+  // sparse when inlined: an inlined image has no asset to import
   const imports = assetQueries
-    .map((q, i) => `import __tpit_${i} from ${JSON.stringify(self + q)};`)
+    .map((q, i) => (q === undefined ? '' : `import __tpit_${i} from ${JSON.stringify(self + q)};`))
+    .filter(Boolean)
     .join('\n');
 
   const named = options.namedExports === false ? [] : namedExportKeys(result);

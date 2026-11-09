@@ -100,6 +100,13 @@ See the [imagetools directive reference](https://github.com/JonasKruckenberg/ima
 
 Widths and heights larger than the source are reduced to the source size, so a 1600px photo never comes out at 3000px. Add `allowUpscale=true` to scale up anyway. When that makes two variants identical — `w=1600;3000` on a 1600px photo — both are kept (they share one file) and the build logs a warning, so the [shape of the import](#multiple-variants) doesn't change with the source.
 
+Add `inline` to embed the image in your JavaScript as a `data:` URL instead of emitting a file — worth it for tiny images such as blurred placeholders, where a separate request costs more than the bytes:
+
+```ts
+import placeholder from './photo.jpg?w=24&blur=2&format=webp&inline';
+// "data:image/webp;base64,…"
+```
+
 ### Multiple variants
 
 Separate values with `;` to get one image per value. With several directives, you get every combination:
@@ -291,7 +298,7 @@ One deliberate difference: when values clamp to the source size and become ident
 
 `defaultDirectives` takes directives as data (a query string or an object) rather than a function. For per-image presets, use [`presets`](#presets-and-defaults) — `?preset=hero` instead of a custom `?hero` directive.
 
-Not supported yet: the `inline` directive, and the `extendTransforms`, `extendOutputFormats` and `resolveConfigs` options.
+Not supported yet: the `extendTransforms`, `extendOutputFormats` and `resolveConfigs` options.
 
 ## How it works
 
