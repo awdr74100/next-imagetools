@@ -8,5 +8,7 @@
     "lib": ["ES2023", "DOM"],
     "types": ["node"]
   },
-  "include": ["test/**/*.ts", "vitest.config.mts", "scripts/**/*.mjs"]
+  "include": ["test/**/*.ts", "vitest.config.mts", "scripts/**/*.mjs"],
+  // the fixture app is a Next.js project with its own tsconfig
+  "exclude": ["test/fixtures"]
 }
