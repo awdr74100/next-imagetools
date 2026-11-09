@@ -152,6 +152,13 @@ import photo from './photo.jpg?w=800&format=webp&as=metadata';
 // { src: "…", width: 800, height: 533, format: "webp", … }
 ```
 
+**Named imports.** When the result is a single object (`as=metadata`, `as=img`, `as=picture`), its keys are also exported by name:
+
+```ts
+import { src, width, height } from './photo.jpg?w=800&format=webp&as=metadata';
+import { sources, img } from './photo.jpg?w=400;800&format=avif;webp&as=picture';
+```
+
 ## TypeScript
 
 Reference the client types once, from any `.d.ts` file in your app:
@@ -231,12 +238,14 @@ Pass options as the second argument:
 export default withImagetools(nextConfig, {
   cacheDir: 'node_modules/.cache/turbopack-imagetools',
   removeMetadata: true,
+  namedExports: true,
   extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'gif', 'tiff', 'heif'],
 });
 ```
 
 - **`cacheDir`** — where processed images are cached between builds, relative to the project root. Default: `node_modules/.cache/turbopack-imagetools`. Cache it in CI to speed up builds.
 - **`removeMetadata`** — strip EXIF, ICC, XMP and other private metadata from generated images. Default: `true`.
+- **`namedExports`** — also export the keys of object results by name, as in `import { width } from './a.jpg?as=metadata'`. Default: `true`.
 - **`extensions`** — source file extensions handled when imported with a query. Default: `jpg`, `jpeg`, `png`, `webp`, `avif`, `gif`, `tiff`, `heif`.
 
 Options must be JSON-serializable: Turbopack runs loaders in separate worker processes and passes their options as data.
@@ -247,10 +256,7 @@ Directives, output formats and the `&imagetools` type markers are the same, so m
 
 One deliberate difference: when values clamp to the source size and become identical, vite-imagetools merges them, so `w=1600;3000` on a 1600px source gives a single URL instead of an array. Here the array keeps both entries, so the shape of an import [follows from its query](#multiple-variants).
 
-Not supported yet:
-
-- Named imports such as `import { width, src } from './photo.jpg?as=metadata'` — use the default import.
-- The `inline` directive, and the `include`, `exclude`, `defaultDirectives`, `extendTransforms`, `extendOutputFormats` and `resolveConfigs` options.
+Not supported yet: the `inline` directive, and the `include`, `exclude`, `defaultDirectives`, `extendTransforms`, `extendOutputFormats` and `resolveConfigs` options.
 
 ## How it works
 

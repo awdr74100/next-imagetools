@@ -64,11 +64,15 @@ describe('withImagetools', () => {
 
   it('passes loader options through as JSON, without the helper-only keys', () => {
     const rules = rulesFor(
-      withImagetools({}, { cacheDir: '.cache/x', removeMetadata: false, extensions: ['jpg'] }),
+      withImagetools(
+        {},
+        { cacheDir: '.cache/x', removeMetadata: false, namedExports: false, extensions: ['jpg'] },
+      ),
       '*.jpg',
     )!;
     const options = rules.flatMap(r => (r.loaders as { options?: object }[]).map(l => l.options));
-    for (const o of options) expect(o).toEqual({ cacheDir: '.cache/x', removeMetadata: false });
+    for (const o of options)
+      expect(o).toEqual({ cacheDir: '.cache/x', removeMetadata: false, namedExports: false });
   });
 
   it('does not mutate the config it was given', () => {

@@ -5,7 +5,8 @@ import url from './images/hero.jpg?w=400&format=webp&imagetools';
 import gallery from './images/hero.jpg?w=300;600&format=webp&imagetools-gallery';
 import img from './images/hero.jpg?w=300;600&as=img';
 import metaGallery from './images/hero.jpg?w=300;600&as=metadata&imagetools-gallery';
-import meta from './images/hero.jpg?w=500&as=metadata&imagetools';
+import meta, { hasAlpha, src, width } from './images/hero.jpg?w=500&as=metadata&imagetools';
+import { sources } from './images/hero.jpg?w=400&format=avif;webp&as=picture';
 import picture from './images/hero.jpg?w=400;800&format=avif;webp&as=picture';
 import srcset from './images/hero.jpg?w=300;600&as=srcset';
 
@@ -17,6 +18,10 @@ picture satisfies { sources: Record<string, string>; img: { src: string; w: numb
 meta satisfies { src: string; width: number; height: number; format: string };
 meta.channels satisfies number | undefined; // sharp metadata comes through
 metaGallery satisfies { src: string }[];
+src satisfies string;
+width satisfies number;
+hasAlpha satisfies boolean | undefined;
+sources satisfies Record<string, string>;
 
 // @ts-expect-error a single URL is not an array
 url satisfies string[];

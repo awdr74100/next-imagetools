@@ -6,7 +6,10 @@ import heroGallery from '../images/hero.jpg?w=300;600&format=webp&imagetools-gal
 import heroClamped from '../images/hero.jpg?w=1600;3000&format=webp&imagetools-gallery';
 import heroSrcset from '../images/hero.jpg?w=300;600;900&format=webp&as=srcset';
 import heroPicture from '../images/hero.jpg?w=400;800&format=avif;webp;jpg&as=picture';
-import heroMeta from '../images/hero.jpg?w=500&format=webp&as=metadata&imagetools';
+import heroMeta, {
+  src as namedSrc,
+  width as namedWidth,
+} from '../images/hero.jpg?w=500&format=webp&as=metadata&imagetools';
 import plain from '../images/hero.jpg';
 import Hidden from './hidden';
 
@@ -59,6 +62,7 @@ export default function ImageGrid({ mode }: { mode: string }) {
             heroUrl,
             heroGallery,
             heroClamped,
+            named: { src: namedSrc, width: namedWidth },
             heroSrcset,
             heroPicture,
             heroMeta,
