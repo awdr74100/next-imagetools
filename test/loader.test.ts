@@ -58,6 +58,19 @@ describe('module loader', () => {
     expect(imports.filter(i => i?.includes('tpit_ext=webp'))).toHaveLength(2);
   });
 
+  it('as=metadata:<keys> keeps only those keys', async () => {
+    const code = await runModule('?w=300&format=webp&as=metadata:width;height');
+    const value = code.match(/const __tpit_value = (.*);\n/)?.[1];
+    expect(value).toBe('{"width":300,"height":188}');
+  });
+
+  it('as=picture lists every format but the last as a source, and uses the last as fallback', async () => {
+    const code = await runModule('?w=300&format=avif;webp;jpg&as=picture');
+    expect(code).toMatch(/"sources":\{"avif":"[^}]*","webp":"[^}]*"\}/);
+    expect(code).not.toMatch(/"sources":\{[^}]*"jpe?g"/);
+    expect(code).toMatch(/"img":\{"src":"" \+ __tpit_url\(__tpit_2\)/);
+  });
+
   it('clamps widths to the source unless allowUpscale', async () => {
     const clamped = await runModule('?w=400;9000&format=webp');
     expect(clamped).toMatch(/w=1600/);
