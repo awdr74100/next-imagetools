@@ -17,7 +17,15 @@ import {
 } from 'imagetools-core';
 import sharp from 'sharp';
 
-import { MARKER, cacheDirOf, hash, processImage, type LoaderContext } from './shared';
+import {
+  MARKER,
+  cacheDirOf,
+  hash,
+  processImage,
+  toParams,
+  type LoaderContext,
+  type LoaderOptions,
+} from './shared';
 
 const PLACEHOLDER = (i: number) => `__TPIT_${i}__`;
 const TYPE_MARKERS = ['imagetools', 'imagetools-gallery'];
@@ -36,6 +44,36 @@ const clamp = (s: string, n: number) =>
 // (and a srcset may not list the same width twice), so they are dropped before formatting.
 const SINGLE_VALUE_FORMATS = new Set(['srcset', 'img', 'picture']);
 
+/**
+ * The directives an import ends up with, lowest precedence first: `defaultDirectives`, then the
+ * named preset, then the import's own query. Type-only markers (see client.d.ts) are dropped so a
+ * marked import shares cache entries and output files with the same import unmarked.
+ */
+function resolveDirectives(query: URLSearchParams, options: LoaderOptions): URLSearchParams {
+  for (const marker of TYPE_MARKERS) query.delete(marker);
+
+  const presetName = query.get('preset');
+  query.delete('preset');
+  let preset: URLSearchParams | undefined;
+  if (presetName !== null) {
+    const definition = options.presets?.[presetName];
+    if (definition === undefined) {
+      const known = Object.keys(options.presets ?? {});
+      throw new Error(
+        `Unknown imagetools preset "${presetName}". ` +
+          (known.length ? `Defined presets: ${known.join(', ')}.` : 'No presets are defined.'),
+      );
+    }
+    preset = toParams(definition);
+  }
+
+  const directives = new URLSearchParams();
+  for (const layer of [toParams(options.defaultDirectives), preset, query]) {
+    for (const [key, value] of layer ?? []) directives.set(key, value);
+  }
+  return directives;
+}
+
 function uniqueByConfig(images: ProcessedImage[]): ProcessedImage[] {
   const seen = new Set<string>();
   return images.filter(image => {
@@ -52,10 +90,7 @@ export default async function imagetoolsLoader(this: LoaderContext): Promise<str
   const cacheDir = cacheDirOf(this, options);
 
   const pathname = this.resourcePath;
-  const directives = new URLSearchParams(this.resourceQuery);
-  // type-only markers (see client.d.ts); dropping them keeps cache keys and output files shared
-  // with the same import written without a marker
-  for (const marker of TYPE_MARKERS) directives.delete(marker);
+  const directives = resolveDirectives(new URLSearchParams(this.resourceQuery), options);
 
   const source = await readFile(pathname);
   const sourceHash = hash([source]);

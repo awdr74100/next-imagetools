@@ -55,6 +55,23 @@ function toRules(collection: RuleCollection): RuleItem[] {
 }
 
 /**
+ * Several values in a default (`format=avif;webp`) multiply the images of every import, which turns
+ * single values into arrays across the whole app and silently invalidates the `&imagetools` type
+ * markers. Allowed, but worth saying once when the config loads.
+ */
+function warnOnMultiValueDefaults(defaults: ImagetoolsOptions['defaultDirectives']) {
+  if (defaults === undefined) return;
+  const multi = [...new URLSearchParams(defaults)].filter(([, v]) => v.includes(';'));
+  if (multi.length === 0) return;
+  console.warn(
+    `[turbopack-imagetools] defaultDirectives sets several values for ${multi
+      .map(([k, v]) => `${k}=${v}`)
+      .join(', ')}. Every import then produces several images, so imports that would give a ` +
+      `single value give an array instead, and \`&imagetools\` type markers no longer match.`,
+  );
+}
+
+/**
  * Adds the imagetools rules to `turbopack.rules`. Rules the config already has for the same
  * extension are kept and run first.
  */
@@ -63,6 +80,7 @@ export function withImagetools(
   options: ImagetoolsOptions = {},
 ): NextConfig {
   const { extensions = DEFAULT_EXTENSIONS, ...loaderOptions } = options;
+  warnOnMultiValueDefaults(loaderOptions.defaultDirectives);
   const rules: TurbopackRules = { ...nextConfig.turbopack?.rules };
   for (const ext of extensions) {
     const key = `*.${ext}`;

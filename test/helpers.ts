@@ -215,6 +215,7 @@ function expectedImages(html: string): Expected[] {
     { label: 'gallery 600w', url: data.heroGallery[1], width: 600, format: 'webp' },
     { label: 'clamped 1/2', url: data.heroClamped[0], width: 1600, format: 'webp' },
     { label: 'clamped 2/2', url: data.heroClamped[1], width: 1600, format: 'webp' },
+    { label: 'preset=thumb', url: data.heroThumb, width: 120, format: 'webp' },
     ...fromSrcset('srcset', data.heroSrcset, 'webp'),
     ...fromSrcset('picture avif', data.heroPicture.sources.avif, 'avif'),
     ...fromSrcset('picture webp', data.heroPicture.sources.webp, 'webp'),

@@ -3,7 +3,7 @@
 import { createRequire } from 'node:module';
 import path from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type * as Package from '../packages/turbopack-imagetools/dist/index.cjs';
 
@@ -72,6 +72,19 @@ describe('withImagetools', () => {
         String((r.condition as { query?: RegExp }).query).includes('tpit_ext=jpg('),
       )?.as,
     ).toBe('*.jpg');
+  });
+
+  it('warns once when defaultDirectives would multiply every import', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      withImagetools({}, { defaultDirectives: 'quality=80&format=webp' });
+      expect(warn).not.toHaveBeenCalled();
+      withImagetools({}, { defaultDirectives: { format: 'avif;webp' } });
+      expect(warn).toHaveBeenCalledOnce();
+      expect(warn.mock.calls[0]![0]).toMatch(/format=avif;webp/);
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('only handles the configured extensions', () => {
