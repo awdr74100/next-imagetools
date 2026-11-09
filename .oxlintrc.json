@@ -43,6 +43,12 @@
       {
         "assertFunctionNames": ["expect", "expect.poll", "verify*", "buildAndVerify"]
       }
+    ],
+    "vitest/valid-expect": [
+      "error",
+      {
+        "maxArgs": 2
+      }
     ]
   },
   "overrides": [
