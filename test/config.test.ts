@@ -96,13 +96,18 @@ describe('withImagetools', () => {
     const rules = rulesFor(
       withImagetools(
         {},
-        { cacheDir: '.cache/x', removeMetadata: false, namedExports: false, extensions: ['jpg'] },
+        {
+          cache: { dir: '.cache/x' },
+          removeMetadata: false,
+          namedExports: false,
+          extensions: ['jpg'],
+        },
       ),
       '*.jpg',
     )!;
     const options = rules.flatMap(r => (r.loaders as { options?: object }[]).map(l => l.options));
     for (const o of options)
-      expect(o).toEqual({ cacheDir: '.cache/x', removeMetadata: false, namedExports: false });
+      expect(o).toEqual({ cache: { dir: '.cache/x' }, removeMetadata: false, namedExports: false });
   });
 
   it('does not mutate the config it was given', () => {

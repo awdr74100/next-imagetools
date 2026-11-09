@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, statSync } from 'node:fs';
-import { readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdirSync } from 'node:fs';
+import { readFile, readdir, rename, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import {
@@ -19,8 +19,18 @@ import { version } from '../package.json';
 /** A set of directives, as a query string (`'w=400&format=webp'`) or an object. */
 export type Directives = string | Record<string, string>;
 
+// a type alias (not an interface) so it stays assignable to Next.js' JSON loader options
+export type CacheOptions = {
+  /** Cache processed images on disk between builds (default: true). */
+  enabled?: boolean;
+  /** Relative to the Next.js app (default: `node_modules/.cache/turbopack-imagetools`). */
+  dir?: string;
+  /** Remove entries that haven't been used for this many seconds (default: keep everything). */
+  retention?: number;
+};
+
 export interface LoaderOptions {
-  cacheDir?: string;
+  cache?: CacheOptions;
   removeMetadata?: boolean;
   /** Also export the keys of object results by name (default: true). */
   namedExports?: boolean;
@@ -60,10 +70,56 @@ export function hash(parts: (string | Buffer)[]): string {
   return h.digest('hex');
 }
 
-export function cacheDirOf(ctx: LoaderContext, options: LoaderOptions): string {
-  const dir = path.resolve(ctx.rootContext ?? process.cwd(), options.cacheDir ?? DEFAULT_CACHE_DIR);
-  mkdirSync(dir, { recursive: true });
-  return dir;
+const sweeps = new Map<string, Promise<void>>();
+
+/**
+ * The cache directory to use, or `undefined` when caching is disabled. With `retention` set, the
+ * first call in a process for a directory removes entries that haven't been used for that long;
+ * loaders have no end-of-build hook, so this is the one point every worker passes through.
+ */
+export async function prepareCache(
+  ctx: LoaderContext,
+  options: LoaderOptions,
+): Promise<string | undefined> {
+  const { enabled = true, dir = DEFAULT_CACHE_DIR, retention } = options.cache ?? {};
+  if (!enabled) return undefined;
+  const resolved = path.resolve(ctx.rootContext ?? process.cwd(), dir);
+  mkdirSync(resolved, { recursive: true });
+  if (retention !== undefined) {
+    let sweep = sweeps.get(resolved);
+    if (!sweep) sweeps.set(resolved, (sweep = removeExpired(resolved, retention)));
+    await sweep;
+  }
+  return resolved;
+}
+
+async function removeExpired(dir: string, retentionSeconds: number): Promise<void> {
+  const cutoff = Date.now() - retentionSeconds * 1000;
+  const names = await readdir(dir);
+  await Promise.all(
+    names.map(async name => {
+      const file = path.join(dir, name);
+      const info = await stat(file).catch(() => undefined);
+      // entries are touched on every hit (see readCached), so mtime is the last use
+      if (info?.isFile() && info.mtimeMs < cutoff) await rm(file, { force: true });
+    }),
+  );
+}
+
+/**
+ * A cached encoding, or `undefined` to process the image again. Any read failure counts as a miss —
+ * including an entry another worker's retention sweep removed a moment ago.
+ */
+async function readCached(file: string): Promise<Buffer | undefined> {
+  try {
+    const data = await readFile(file);
+    if (data.length === 0) return undefined;
+    const now = new Date();
+    await utimes(file, now, now).catch(() => {});
+    return data;
+  } catch {
+    return undefined;
+  }
 }
 
 async function writeCache(file: string, data: Buffer): Promise<void> {
@@ -89,7 +145,8 @@ interface ProcessArgs {
   sourceHash: string;
   config: ImageConfig;
   searchParams: URLSearchParams;
-  cacheDir: string;
+  /** `undefined` when caching is disabled. */
+  cacheDir: string | undefined;
   logger: Logger;
   removeMetadata: boolean;
 }
@@ -130,14 +187,10 @@ export function processImage(args: ProcessArgs): Promise<ProcessedResult> {
 }
 
 async function run(id: string, args: ProcessArgs): Promise<ProcessedResult> {
-  const file = path.join(args.cacheDir, id);
-  const cached = statSync(file, { throwIfNoEntry: false });
-  let data: Buffer;
-  let transforms: AppliedTransforms;
-  if (cached && cached.size > 0) {
-    data = await readFile(file);
-    transforms = {};
-  } else {
+  const file = args.cacheDir === undefined ? undefined : path.join(args.cacheDir, id);
+  let data = file === undefined ? undefined : await readCached(file);
+  let transforms: AppliedTransforms = {};
+  if (!data) {
     const { transforms: steps } = generateTransforms(
       args.config,
       builtins,
@@ -147,7 +200,7 @@ async function run(id: string, args: ProcessArgs): Promise<ProcessedResult> {
     const res = await applyTransforms(steps, sharp(args.source), args.removeMetadata);
     data = (await res.image.toBuffer({ resolveWithObject: true })).data;
     transforms = res.metadata.transforms;
-    await writeCache(file, data);
+    if (file !== undefined) await writeCache(file, data);
   }
   const meta = await sharp(data).metadata();
   const format = args.config['format'] ?? transforms.format ?? meta.format;

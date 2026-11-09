@@ -23,7 +23,7 @@ turbopack-imagetools runs **only at build time and in `next dev`**, inside the N
 
 - **Inputs.** Image files your source imports, and the directives in the import's query string. Both come from your own repository; the loader never fetches anything over the network.
 - **Decoding.** Images are decoded and encoded by [sharp](https://sharp.pixelplumbing.com/) (libvips). Treat images from untrusted sources the way you would any file handed to an image decoder.
-- **File writes.** Only inside the cache directory (`node_modules/.cache/turbopack-imagetools` by default, or the `cacheDir` you configure). Emitted images go through Turbopack's own asset pipeline into `.next` / `out`.
+- **File writes.** Only inside the cache directory (`node_modules/.cache/turbopack-imagetools` by default, or the `cache.dir` you configure). Emitted images go through Turbopack's own asset pipeline into `.next` / `out`.
 
 ## Scope
 

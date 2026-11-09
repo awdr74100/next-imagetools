@@ -1,6 +1,6 @@
 // Calls the built loaders directly with a minimal loader context, without Next.js. Fast checks of
 // what the loader emits; the build/dev/mode suites cover what Turbopack does with it.
-import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -28,7 +28,7 @@ const context = (resourceQuery: string, resourcePath = HERO, options: object = {
   resourcePath,
   resourceQuery,
   rootContext: path.dirname(HERO),
-  getOptions: () => ({ cacheDir, ...options }),
+  getOptions: () => ({ cache: { dir: cacheDir }, ...options }),
   emitWarning: (e: Error) => warnings.push(e.message),
 });
 
@@ -197,6 +197,51 @@ describe('module loader', () => {
     it('can be turned off', async () => {
       const code = await runModule('?w=300&format=webp&as=metadata', { namedExports: false });
       expect(names(code)).toEqual([]);
+    });
+  });
+
+  describe('cache options', () => {
+    const freshDir = () => mkdtempSync(path.join(tmpdir(), 'tpit-cache-'));
+    const hourAgo = () => new Date(Date.now() - 3600_000);
+
+    it('writes nothing when disabled', async () => {
+      const dir = freshDir();
+      try {
+        await runModule('?w=211&format=webp', { cache: { dir, enabled: false } });
+        expect(readdirSync(dir)).toEqual([]);
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('removes entries unused for longer than retention, and keeps the rest', async () => {
+      const dir = freshDir();
+      try {
+        writeFileSync(path.join(dir, 'stale'), 'x');
+        utimesSync(path.join(dir, 'stale'), hourAgo(), hourAgo());
+        writeFileSync(path.join(dir, 'recent'), 'x');
+        await runModule('?w=212&format=webp', { cache: { dir, retention: 60 } });
+        const left = readdirSync(dir);
+        expect(left).not.toContain('stale');
+        expect(left).toContain('recent');
+        expect(left).toHaveLength(2); // `recent` plus the entry just written
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('marks an entry as used on every hit, so retention only drops unused ones', async () => {
+      const dir = freshDir();
+      try {
+        await runModule('?w=213&format=webp', { cache: { dir } });
+        const [entry] = readdirSync(dir);
+        const file = path.join(dir, entry!);
+        utimesSync(file, hourAgo(), hourAgo());
+        await runModule('?w=213&format=webp', { cache: { dir } });
+        expect(Date.now() - statSync(file).mtimeMs).toBeLessThan(60_000);
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
     });
   });
 
