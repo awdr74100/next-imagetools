@@ -1,10 +1,14 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   BLUE,
+  CONFIG_FILE,
   RED,
   clean,
   logServerOnFailure,
+  readImports,
   startServer,
   verifyPage,
   waitFor,
@@ -17,6 +21,7 @@ const PORT = 3202;
 describe.sequential('next dev (Turbopack)', () => {
   let server: Awaited<ReturnType<typeof startServer>> | undefined;
   logServerOnFailure(() => server);
+  const originalConfig = readFileSync(CONFIG_FILE, 'utf8');
 
   beforeAll(async () => {
     await writeHero(BLUE);
@@ -25,6 +30,7 @@ describe.sequential('next dev (Turbopack)', () => {
   afterAll(async () => {
     await server?.stop();
     await writeHero(BLUE);
+    writeFileSync(CONFIG_FILE, originalConfig);
   });
 
   it('cold start serves every image', async () => {
@@ -55,5 +61,21 @@ describe.sequential('next dev (Turbopack)', () => {
     await writeHero(RED);
     await waitFor(() => verifyPage(server!.base, RED));
     expect(server!.log()).not.toMatch(/EPERM|ENOENT/);
+  });
+
+  it('editing the config file while running updates the imports that use it', async () => {
+    const edited = originalConfig.replace(
+      '({ w: image.info.width })',
+      '({ w: image.info.width, h: image.info.height })',
+    );
+    expect(edited, 'the edit must apply').not.toBe(originalConfig);
+    writeFileSync(CONFIG_FILE, edited);
+    await waitFor(async () => {
+      const data = readImports(await (await fetch(server!.base + '/')).text());
+      expect(data.heroDims).toEqual([
+        { w: 100, h: 63 },
+        { w: 200, h: 125 },
+      ]);
+    });
   });
 });

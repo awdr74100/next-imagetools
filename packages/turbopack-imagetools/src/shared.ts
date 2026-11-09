@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { readFile, readdir, rename, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import {
   applyTransforms,
@@ -10,10 +11,12 @@ import {
   type AppliedTransforms,
   type ImageConfig,
   type Logger,
+  type TransformFactory,
 } from 'imagetools-core';
 import sharp, { type Metadata } from 'sharp';
 
 import { version } from '../package.json';
+import type { ImagetoolsConfig } from './config';
 
 /** Options shared by both loaders; must stay JSON-serializable (Turbopack loader options). */
 /** A set of directives, as a query string (`'w=400&format=webp'`) or an object. */
@@ -45,6 +48,11 @@ export interface LoaderOptions {
   include?: string[];
   /** Never handle imports whose path, relative to the Next.js app, matches one of these globs. */
   exclude?: string[];
+  /**
+   * A module (relative to the Next.js app) whose default export holds the options that take
+   * functions; see `ImagetoolsConfig` in `turbopack-imagetools/config`.
+   */
+  configFile?: string;
 }
 
 export const toParams = (directives: Directives | undefined): URLSearchParams | undefined =>
@@ -142,6 +150,10 @@ export interface ProcessedResult {
 
 interface ProcessArgs {
   source: Buffer;
+  /** Transform factories: the built-ins, or what the config file's extendTransforms returned. */
+  factories: TransformFactory[];
+  /** Hash of the config file, which can change the output; empty without one. */
+  configHash: string;
   sourceHash: string;
   config: ImageConfig;
   searchParams: URLSearchParams;
@@ -176,7 +188,8 @@ export function cacheKey(
  * editing any of them never hits a stale entry.
  */
 export function processImage(args: ProcessArgs): Promise<ProcessedResult> {
-  const id = cacheKey(args.config, args.sourceHash, args.removeMetadata);
+  const engine = args.configHash ? `${ENGINE}|config:${args.configHash}` : ENGINE;
+  const id = cacheKey(args.config, args.sourceHash, args.removeMetadata, engine);
   let p = inflight.get(id);
   if (!p) {
     p = run(id, args);
@@ -193,7 +206,7 @@ async function run(id: string, args: ProcessArgs): Promise<ProcessedResult> {
   if (!data) {
     const { transforms: steps } = generateTransforms(
       args.config,
-      builtins,
+      args.factories,
       args.searchParams,
       args.logger,
     );
@@ -206,4 +219,51 @@ async function run(id: string, args: ProcessArgs): Promise<ProcessedResult> {
   const format = args.config['format'] ?? transforms.format ?? meta.format;
   if (format !== undefined) transforms.format = format;
   return { id, data, meta, transforms };
+}
+
+export interface LoadedConfig {
+  config: ImagetoolsConfig;
+  /** Content hash of the config file; empty when there is none. */
+  hash: string;
+  factories: TransformFactory[];
+}
+
+const NO_CONFIG: LoadedConfig = { config: {}, hash: '', factories: builtins };
+const loadedConfigs = new Map<string, Promise<LoadedConfig>>();
+
+/**
+ * Imports the `configFile` module, if any. Three caches could otherwise serve an outdated config:
+ *
+ * - Turbopack, which reruns a loader only when its inputs change: the file is registered as a
+ *   dependency of every module that uses it.
+ * - Node's module cache, which returns the first import forever: the file is imported with its
+ *   content hash in the URL, so an edit loads a new module.
+ * - The disk cache: the hash is part of every cache key (see processImage).
+ */
+export async function loadConfig(
+  ctx: LoaderContext,
+  options: LoaderOptions,
+): Promise<LoadedConfig> {
+  if (!options.configFile) return NO_CONFIG;
+  const file = path.resolve(ctx.rootContext ?? process.cwd(), options.configFile);
+  ctx.addDependency?.(file);
+  const content = await readFile(file).catch(() => {
+    throw new Error(`turbopack-imagetools: configFile not found at ${file}`);
+  });
+  const contentHash = hash([content]);
+  let loaded = loadedConfigs.get(contentHash);
+  if (!loaded) {
+    loaded = import(`${pathToFileURL(file).href}?v=${contentHash}`).then(
+      (mod: { default?: ImagetoolsConfig }): LoadedConfig => {
+        const config = mod.default ?? (mod as ImagetoolsConfig);
+        return {
+          config,
+          hash: contentHash,
+          factories: config.extendTransforms?.(builtins) ?? builtins,
+        };
+      },
+    );
+    loadedConfigs.set(contentHash, loaded);
+  }
+  return loaded;
 }

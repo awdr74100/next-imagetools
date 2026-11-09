@@ -3,7 +3,7 @@
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 
-import { MARKER, hash, prepareCache, processImage, type LoaderContext } from './shared';
+import { MARKER, hash, loadConfig, prepareCache, processImage, type LoaderContext } from './shared';
 
 // loader-runner awaits a returned promise, so no this.async() is needed
 export default async function imagetoolsAssetLoader(this: LoaderContext): Promise<Buffer> {
@@ -22,8 +22,11 @@ export default async function imagetoolsAssetLoader(this: LoaderContext): Promis
   this.addDependency?.(sourcePath);
 
   const source = await readFile(sourcePath);
+  const { factories, hash: configHash } = await loadConfig(this, options);
   const r = await processImage({
     source,
+    factories,
+    configHash,
     sourceHash: hash([source]),
     config,
     searchParams: params,

@@ -201,11 +201,18 @@ const fromSrcset = (label: string, srcset: string, format: Expected['format']): 
     format,
   }));
 
-/** Extracts every image URL the page exposes, with what it should decode to. */
-function expectedImages(html: string): Expected[] {
+/** The values of the fixture's imports, as the page serializes them. */
+export function readImports(html: string) {
   const json = html.match(/<script id="imports" type="application\/json">(.*?)<\/script>/)?.[1];
   expect(json, 'imports JSON on the page').toBeTruthy();
-  const data = JSON.parse(json!);
+  return JSON.parse(json!);
+}
+
+export const CONFIG_FILE = path.join(ROOT, 'imagetools.config.mjs');
+
+/** Extracts every image URL the page exposes, with what it should decode to. */
+function expectedImages(html: string): Expected[] {
+  const data = readImports(html);
   const hidden = html.match(/id="hidden-src" data-src="([^"]+)"/)?.[1];
   expect(hidden, 'client-only image src').toBeTruthy();
 
@@ -242,6 +249,10 @@ function expectedImages(html: string): Expected[] {
     src: expect.stringMatching(/\/photo\.[\w-]+\.jpg$/),
   });
   expect(data.heroInline, 'inline gives a data URL').toMatch(/^data:image\/webp;base64,/);
+  expect(data.heroDims, 'custom output format from the config file').toEqual([
+    { w: 100 },
+    { w: 200 },
+  ]);
   // a same-format output keeps the source's name; a converted one adds the new extension
   expect(data.heroPicture.img.src, 'jpg from a jpg source').toMatch(/\/hero\.[\w-]+\.jpg$/);
   expect(data.heroUrl, 'webp from a jpg source').toMatch(/\/hero\.jpg\.[\w-]+\.webp$/);
