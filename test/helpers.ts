@@ -233,6 +233,9 @@ function expectedImages(html: string): Expected[] {
   expect(data.heroGallery, '&imagetools-gallery yields an array').toHaveLength(2);
   expect(data.heroClamped, 'values clamped to one size keep the array shape').toHaveLength(2);
   expect(data.heroClamped[0], 'identical variants share one file').toBe(data.heroClamped[1]);
+  // a same-format output keeps the source's name; a converted one adds the new extension
+  expect(data.heroPicture.img.src, 'jpg from a jpg source').toMatch(/\/hero\.[\w-]+\.jpg$/);
+  expect(data.heroUrl, 'webp from a jpg source').toMatch(/\/hero\.jpg\.[\w-]+\.webp$/);
   expect(data.named, 'named exports match the default export').toEqual({
     src: data.heroMeta.src,
     width: data.heroMeta.width,

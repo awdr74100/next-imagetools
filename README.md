@@ -268,6 +268,8 @@ Turbopack runs webpack-style loaders, but its loader API has no `emitFile`, and 
 
 Because the generated images are ordinary Turbopack assets, they behave the same in every rendering mode and deployment target.
 
+Generated files are named after their source: `hero.<hash>.jpg` when the format stays the same, and `hero.jpg.<hash>.webp` when it changes. Turbopack can only rename a module by adding to its file name, so a converted image keeps its original extension in the name.
+
 ## Troubleshooting
 
 **An image looks outdated, or a change doesn't show up.** Delete `.next` and `node_modules/.cache/turbopack-imagetools` and rebuild. If that fixes it, please [open an issue](https://github.com/awdr74100/turbopack-imagetools/issues/new/choose) — caches are supposed to invalidate on their own.
