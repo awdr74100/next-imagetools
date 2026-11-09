@@ -216,6 +216,8 @@ function expectedImages(html: string): Expected[] {
     { label: 'clamped 1/2', url: data.heroClamped[0], width: 1600, format: 'webp' },
     { label: 'clamped 2/2', url: data.heroClamped[1], width: 1600, format: 'webp' },
     { label: 'preset=thumb', url: data.heroThumb, width: 120, format: 'webp' },
+    // fetch() decodes data: URLs too, so an inlined image goes through the same checks
+    { label: 'inline', url: data.heroInline, width: 24, format: 'webp' },
     ...fromSrcset('srcset', data.heroSrcset, 'webp'),
     ...fromSrcset('picture avif', data.heroPicture.sources.avif, 'avif'),
     ...fromSrcset('picture webp', data.heroPicture.sources.webp, 'webp'),
@@ -239,6 +241,7 @@ function expectedImages(html: string): Expected[] {
     height: 48,
     src: expect.stringMatching(/\/photo\.[\w-]+\.jpg$/),
   });
+  expect(data.heroInline, 'inline gives a data URL').toMatch(/^data:image\/webp;base64,/);
   // a same-format output keeps the source's name; a converted one adds the new extension
   expect(data.heroPicture.img.src, 'jpg from a jpg source').toMatch(/\/hero\.[\w-]+\.jpg$/);
   expect(data.heroUrl, 'webp from a jpg source').toMatch(/\/hero\.jpg\.[\w-]+\.webp$/);

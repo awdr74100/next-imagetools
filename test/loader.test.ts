@@ -200,6 +200,36 @@ describe('module loader', () => {
     });
   });
 
+  describe('inline', () => {
+    const decode = (dataUrl: string) => sharp(Buffer.from(dataUrl.split(',')[1]!, 'base64'));
+
+    it('returns a data URL and imports no asset', async () => {
+      const code = await runModule('?w=20&format=webp&inline');
+      expect(code).not.toMatch(/^import /m);
+      const url = exported(code) as string;
+      expect(url).toMatch(/^data:image\/webp;base64,/);
+      expect(await decode(url).metadata()).toMatchObject({ format: 'webp', width: 20 });
+    });
+
+    it('uses image/jpeg for jpg', async () => {
+      expect(exported(await runModule('?w=20&format=jpg&inline'))).toMatch(
+        /^data:image\/jpeg;base64,/,
+      );
+    });
+
+    it('works with every output format, e.g. a srcset of data URLs', async () => {
+      const srcset = exported(await runModule('?w=20;40&format=webp&as=srcset&inline')) as string;
+      expect(srcset).toMatch(/^data:image\/webp;base64,\S+ 20w, data:image\/webp;base64,\S+ 40w$/);
+    });
+
+    it('shares the cache entry with the same variant imported normally', async () => {
+      await runModule('?w=21&format=webp');
+      const entries = readdirSync(cacheDir).length;
+      await runModule('?w=21&format=webp&inline');
+      expect(readdirSync(cacheDir)).toHaveLength(entries);
+    });
+  });
+
   describe('cache options', () => {
     const freshDir = () => mkdtempSync(path.join(tmpdir(), 'tpit-cache-'));
     const hourAgo = () => new Date(Date.now() - 3600_000);
