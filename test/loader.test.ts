@@ -386,6 +386,84 @@ describe('module loader', () => {
     }
   });
 
+  describe('diagnostics', () => {
+    it('warns about an unknown directive, and still produces the image', async () => {
+      warnings = [];
+      const code = await runModule('?widht=300&format=webp');
+      expect(warnings).toEqual([
+        'hero.jpg?widht=300&format=webp: Unknown directive "widht" has no effect. Did you mean w?',
+      ]);
+      expect(code).toMatch(/tpit_ext=webp/);
+    });
+
+    it('emits warnings without a stack trace, since Turbopack prints it under the message', async () => {
+      const emitted: Error[] = [];
+      await moduleLoader.default.call({
+        ...context('?widht=300&format=webp'),
+        emitWarning: (e: Error) => emitted.push(e),
+      });
+      expect(emitted).toHaveLength(1);
+      expect(emitted[0]!.name).toBe('turbopack-imagetools');
+      expect(emitted[0]!.stack).toBe(`turbopack-imagetools: ${emitted[0]!.message}`);
+    });
+
+    it('fails on an unknown output format, naming the file and query', async () => {
+      await expect(runModule('?w=300&as=piture')).rejects.toThrow(
+        'turbopack-imagetools: hero.jpg?w=300&as=piture: Unknown output format as=piture. Did you mean as=picture?',
+      );
+    });
+
+    it.each([
+      ['?w=abc&format=webp', 'w=abc is not valid'],
+      ['?w=300&format=jxl', 'format=jxl is not valid'],
+      ['?w=300&quality=200', 'quality=200 is not valid'],
+    ])('fails on %s', async (query, message) => {
+      await expect(runModule(query)).rejects.toThrow(`hero.jpg${query}: ${message}`);
+    });
+
+    it('names the file when the source is not an image, in both loaders', async () => {
+      const broken = path.join(path.dirname(HERO), 'broken.jpg');
+      writeFileSync(broken, 'not an image');
+      await expect(moduleLoader.default.call(context('?w=10&format=webp', broken))).rejects.toThrow(
+        'turbopack-imagetools: broken.jpg?w=10&format=webp: Input buffer contains',
+      );
+      await expect(
+        assetLoader.default.call(context('?tpit=x&tpit_ext=webp&w=10&format=webp', broken)),
+      ).rejects.toThrow('turbopack-imagetools: broken.jpg?tpit=x&tpit_ext=webp&w=10&format=webp:');
+    });
+
+    it('ignores a stray separator instead of adding an empty variant', async () => {
+      expect(exported(await runModule('?w=300&format=webp;'))).toBe('#0');
+    });
+
+    it('uses the last value of a repeated directive', async () => {
+      expect(exported(await runModule('?w=100&w=200&as=metadata:width'))).toEqual({ width: 200 });
+    });
+
+    it('re-encodes the source when the query has only a type marker', async () => {
+      expect(exported(await runModule('?imagetools&as=metadata:width'))).toEqual({ width: 1600 });
+    });
+
+    it('does not warn about keys the config file defaultDirectives reads', async () => {
+      const dir = mkdtempSync(path.join(tmpdir(), 'tpit-consumed-'));
+      try {
+        const configFile = path.join(dir, 'config.mjs');
+        writeFileSync(
+          configFile,
+          `export default { defaultDirectives: url => new URLSearchParams(url.searchParams.has('hero') ? 'w=640' : '') };`,
+        );
+        warnings = [];
+        const value = exported(
+          await runModule('?hero&format=webp&as=metadata:width', { configFile }),
+        );
+        expect(value).toEqual({ width: 640 });
+        expect(warnings).toEqual([]);
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+  });
+
   describe('cache options', () => {
     const freshDir = () => mkdtempSync(path.join(tmpdir(), 'tpit-cache-'));
     const hourAgo = () => new Date(Date.now() - 3600_000);

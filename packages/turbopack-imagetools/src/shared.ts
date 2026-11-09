@@ -267,3 +267,33 @@ export async function loadConfig(
   }
   return loaded;
 }
+
+/**
+ * Runs a loader, prefixing any error with the file and query it was processing: in a large app,
+ * "Expected positive integer for width" alone doesn't say which of hundreds of imports to fix.
+ */
+export async function withContext<T>(ctx: LoaderContext, task: () => Promise<T>): Promise<T> {
+  try {
+    return await task();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`turbopack-imagetools: ${where(ctx)}: ${message}`, { cause: error });
+  }
+}
+
+/** The import being processed, as the user wrote it: app-relative path plus query. */
+function where(ctx: LoaderContext): string {
+  const file = path.relative(ctx.rootContext ?? process.cwd(), ctx.resourcePath);
+  return `${file.split(path.sep).join('/')}${ctx.resourceQuery}`;
+}
+
+/**
+ * Emits a build warning about the current import. Turbopack prints a warning's name and stack, so
+ * the stack is replaced by the message: it's about the user's import, not our code.
+ */
+export function warn(ctx: LoaderContext, message: string): void {
+  const warning = new Error(`${where(ctx)}: ${message}`);
+  warning.name = 'turbopack-imagetools';
+  warning.stack = `${warning.name}: ${warning.message}`;
+  ctx.emitWarning?.(warning);
+}

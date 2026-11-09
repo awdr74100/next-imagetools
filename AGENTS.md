@@ -12,6 +12,7 @@ Guidance for anyone — human or agent — working in this repository. Read it b
   - `src/index.ts` — `withImagetools()`, which adds the Turbopack rules to `next.config`. Runs when the config loads, so it must not import anything heavy at runtime (`shared.ts` pulls in sharp).
   - `src/loader.ts` — the **module loader**: resolves directives, processes variants, returns a JS module.
   - `src/asset-loader.ts` — the **asset loader**: returns the encoded bytes of one variant.
+  - `src/directives.ts` — directive checks: known names, value rules, typo suggestions.
   - `src/shared.ts` — processing, the disk cache, cache keys, config-file loading. Bundled into one chunk shared by both loaders, so its in-process memo is shared too.
   - `src/config.ts` / `src/core.ts` — the `turbopack-imagetools/config` and `/core` entries for config files.
   - `client.d.ts` — ambient module types (`turbopack-imagetools/client`).
@@ -39,6 +40,9 @@ Placeholders (`__TPIT_<i>__`) stand in for URLs while the output format runs, an
 - **Return shape follows the query only.** Values clamped to the same size are kept, not merged; single-value formats (`srcset`, `img`, `picture`) dedupe before formatting. Don't reintroduce the merge.
 - **Cache keys** cover the config, the source hash, `removeMetadata`, the package and `sharp.versions` (every codec), and the config file's hash. Anything new that changes the encoded bytes must go into the key.
 - **Every cache layer matters:** Turbopack's (inputs → `addDependency`), Node's module cache (config imported by content hash), and the disk cache (keys). A change touching any of them needs a test for edits across all three.
+
+- **imagetools-core ignores what it doesn't understand.** Unknown directives and unparsable values silently fall back to defaults (and `parametersUsed` from `generateTransforms` is empty for the built-ins, so it can't detect them). `directives.ts` keeps the known names and value rules; `test/directives.test.ts` checks the list against core's source, so an upgrade that renames a directive fails there.
+- **Warnings go through `warn()`,** errors through `withContext()` (both in `shared.ts`): they prefix the import (`images/hero.jpg?w=…`), and `warn()` drops the stack trace Turbopack would otherwise print under the message.
 
 ## Commands
 

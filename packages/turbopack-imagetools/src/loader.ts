@@ -20,6 +20,7 @@ import {
 import picomatch from 'picomatch';
 import sharp, { type Metadata } from 'sharp';
 
+import { checkDirectives, dropEmptyValues } from './directives';
 import {
   MARKER,
   prepareCache,
@@ -27,6 +28,8 @@ import {
   loadConfig,
   processImage,
   toParams,
+  warn,
+  withContext,
   type LoaderContext,
   type LoaderOptions,
 } from './shared';
@@ -109,6 +112,19 @@ function resolveDirectives(
   return directives;
 }
 
+/** Records the keys looked up through get/getAll/has. */
+function trackReads(params: URLSearchParams, keys: Set<string>): void {
+  for (const method of ['get', 'getAll', 'has'] as const) {
+    const original = params[method].bind(params) as (key: string, value?: string) => unknown;
+    Object.defineProperty(params, method, {
+      value: (key: string, value?: string) => {
+        keys.add(key);
+        return original(key, value);
+      },
+    });
+  }
+}
+
 function uniqueByConfig(images: ProcessedImage[]): ProcessedImage[] {
   const seen = new Set<string>();
   return images.filter(image => {
@@ -120,7 +136,11 @@ function uniqueByConfig(images: ProcessedImage[]): ProcessedImage[] {
 }
 
 // loader-runner awaits a returned promise, so no this.async() is needed
-export default async function imagetoolsLoader(this: LoaderContext): Promise<string> {
+export default function imagetoolsLoader(this: LoaderContext): Promise<string> {
+  return withContext(this, () => load.call(this));
+}
+
+async function load(this: LoaderContext): Promise<string> {
   const options = this.getOptions?.() ?? {};
   const pathname = this.resourcePath;
 
@@ -136,9 +156,12 @@ export default async function imagetoolsLoader(this: LoaderContext): Promise<str
     userConfig.extendOutputFormats?.(builtinOutputFormats) ?? builtinOutputFormats;
 
   let configDefaults: URLSearchParams | undefined;
+  // keys the config file's defaultDirectives reads, which makes custom ones (`?hero`) legitimate
+  const consumed = new Set<string>();
   if (userConfig.defaultDirectives) {
     const url = pathToFileURL(pathname);
     url.search = this.resourceQuery;
+    trackReads(url.searchParams, consumed);
     let metadata: Promise<Metadata> | undefined;
     configDefaults = await userConfig.defaultDirectives(
       url,
@@ -155,6 +178,11 @@ export default async function imagetoolsLoader(this: LoaderContext): Promise<str
   const inline = directives.has('inline');
   directives.delete('inline');
 
+  dropEmptyValues(directives);
+  const problems = checkDirectives(directives, outputFormats, consumed);
+  for (const message of problems.warnings) warn(this, message);
+  if (problems.errors.length) throw new Error(problems.errors.join(' '));
+
   const source = await readFile(pathname);
   const sourceHash = hash([source]);
 
@@ -170,12 +198,10 @@ export default async function imagetoolsLoader(this: LoaderContext): Promise<str
       const after = clamp(before, intrinsic);
       directives.set(key, after);
       if (new Set(after.split(';')).size < new Set(before.split(';')).size) {
-        this.emitWarning?.(
-          new Error(
-            `${path.basename(pathname)}: ${key}=${before} goes beyond the source's ${intrinsic}px, ` +
-              `so some variants come out identical. Remove the extra values, or add ` +
-              `allowUpscale=true to scale up.`,
-          ),
+        warn(
+          this,
+          `${key}=${before} goes beyond the source's ${intrinsic}px, so some variants come out ` +
+            `identical. Remove the extra values, or add allowUpscale=true to scale up.`,
         );
       }
     }
@@ -186,7 +212,7 @@ export default async function imagetoolsLoader(this: LoaderContext): Promise<str
     userConfig.resolveConfigs?.(entries, outputFormats) ?? resolveConfigs(entries, outputFormats);
   const logger: Logger = {
     info: console.log,
-    warn: m => this.emitWarning?.(new Error(m)),
+    warn: m => warn(this, m),
     error: m => {
       throw new Error(m);
     },
