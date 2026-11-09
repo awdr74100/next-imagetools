@@ -1,6 +1,7 @@
 packages:
   - 'packages/*'
-  - 'fixtures/*'
+  - 'test/fixtures/*'
+  - 'playground'
 
 onlyBuiltDependencies:
   - sharp

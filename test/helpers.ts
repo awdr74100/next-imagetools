@@ -8,9 +8,10 @@ import sharp from 'sharp';
 import { expect } from 'vitest';
 
 // The fixture app consumes the package through its built `dist`, the way users will.
-const ROOT = path.resolve(import.meta.dirname, '../fixtures/next-app');
+const ROOT = path.resolve(import.meta.dirname, 'fixtures/next-app');
 const DIST = path.resolve(import.meta.dirname, '../packages/turbopack-imagetools/dist');
-const NEXT_BIN = path.join(ROOT, 'node_modules/next/dist/bin/next');
+export const PLAYGROUND = path.resolve(import.meta.dirname, '../playground');
+const nextBin = (root: string) => path.join(root, 'node_modules/next/dist/bin/next');
 export const HERO = path.join(ROOT, 'images/hero.jpg');
 const env = { ...process.env, NEXT_TELEMETRY_DISABLED: '1' };
 
@@ -46,9 +47,9 @@ export function clean({ next = false, imagetools = false }) {
     });
 }
 
-export function build({ exportMode = false } = {}) {
-  const res = spawnSync(process.execPath, [NEXT_BIN, 'build'], {
-    cwd: ROOT,
+export function build({ exportMode = false, root = ROOT } = {}) {
+  const res = spawnSync(process.execPath, [nextBin(root), 'build'], {
+    cwd: root,
     env: { ...env, TPIT_EXPORT: exportMode ? '1' : '' },
     encoding: 'utf8',
   });
@@ -98,9 +99,9 @@ function kill(child: ChildProcess) {
   else child.kill('SIGTERM');
 }
 
-export async function startServer(mode: 'start' | 'dev', port: number) {
-  const child = spawn(process.execPath, [NEXT_BIN, mode, '-p', String(port)], {
-    cwd: ROOT,
+export async function startServer(mode: 'start' | 'dev', port: number, root = ROOT) {
+  const child = spawn(process.execPath, [nextBin(root), mode, '-p', String(port)], {
+    cwd: root,
     env,
     stdio: 'pipe',
   });

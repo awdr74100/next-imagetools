@@ -4,8 +4,9 @@
   "workspaces": {
     ".": {},
     "packages/turbopack-imagetools": {},
-    "fixtures/next-app": {
+    "test/fixtures/next-app": {
       "entry": ["types.check.ts"]
-    }
+    },
+    "playground": {}
   }
 }
