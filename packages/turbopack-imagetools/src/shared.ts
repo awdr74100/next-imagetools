@@ -1,0 +1,118 @@
+import { createHash } from 'node:crypto';
+import { mkdirSync, statSync } from 'node:fs';
+import { readFile, rename, rm, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+
+import {
+  applyTransforms,
+  builtins,
+  generateTransforms,
+  type AppliedTransforms,
+  type ImageConfig,
+  type Logger,
+} from 'imagetools-core';
+import sharp, { type Metadata } from 'sharp';
+
+/** Options shared by both loaders; must stay JSON-serializable (Turbopack loader options). */
+export interface LoaderOptions {
+  cacheDir?: string;
+  removeMetadata?: boolean;
+}
+
+/** The subset of the webpack loader context that Turbopack provides and these loaders use. */
+export interface LoaderContext {
+  resourcePath: string;
+  resourceQuery: string;
+  rootContext?: string;
+  getOptions?: () => LoaderOptions;
+  emitWarning?: (warning: Error) => void;
+  addDependency?: (file: string) => void;
+}
+
+/** Marks the internal per-image import that returns the encoded bytes. */
+export const MARKER = 'tpit';
+export const DEFAULT_CACHE_DIR = 'node_modules/.cache/turbopack-imagetools';
+
+export function hash(parts: (string | Buffer)[]): string {
+  const h = createHash('sha1');
+  for (const p of parts) h.update(p);
+  return h.digest('hex');
+}
+
+export function cacheDirOf(ctx: LoaderContext, options: LoaderOptions): string {
+  const dir = path.resolve(ctx.rootContext ?? process.cwd(), options.cacheDir ?? DEFAULT_CACHE_DIR);
+  mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+async function writeCache(file: string, data: Buffer): Promise<void> {
+  const tmp = `${file}.${process.pid}-${Math.random().toString(36).slice(2)}.tmp`;
+  try {
+    await writeFile(tmp, data);
+    await rename(tmp, file);
+  } catch {
+    // another worker won the race (EPERM/EEXIST on Windows); its file is just as good
+    await rm(tmp, { force: true });
+  }
+}
+
+export interface ProcessedResult {
+  id: string;
+  data: Buffer;
+  meta: Metadata;
+  transforms: AppliedTransforms;
+}
+
+interface ProcessArgs {
+  source: Buffer;
+  sourceHash: string;
+  config: ImageConfig;
+  searchParams: URLSearchParams;
+  cacheDir: string;
+  logger: Logger;
+  removeMetadata: boolean;
+}
+
+const inflight = new Map<string, Promise<ProcessedResult>>();
+
+/**
+ * Runs one resolved config through imagetools-core, memoized in-process and on disk. Both the
+ * module loader (needs dimensions) and the asset loader (needs bytes) call this. The cache key
+ * includes the source hash, so editing the source never hits a stale entry.
+ */
+export function processImage(args: ProcessArgs): Promise<ProcessedResult> {
+  const id = hash([JSON.stringify(args.config), args.sourceHash]);
+  let p = inflight.get(id);
+  if (!p) {
+    p = run(id, args);
+    inflight.set(id, p);
+    void p.finally(() => inflight.delete(id)).catch(() => {});
+  }
+  return p;
+}
+
+async function run(id: string, args: ProcessArgs): Promise<ProcessedResult> {
+  const file = path.join(args.cacheDir, id);
+  const cached = statSync(file, { throwIfNoEntry: false });
+  let data: Buffer;
+  let transforms: AppliedTransforms;
+  if (cached && cached.size > 0) {
+    data = await readFile(file);
+    transforms = {};
+  } else {
+    const { transforms: steps } = generateTransforms(
+      args.config,
+      builtins,
+      args.searchParams,
+      args.logger,
+    );
+    const res = await applyTransforms(steps, sharp(args.source), args.removeMetadata);
+    data = (await res.image.toBuffer({ resolveWithObject: true })).data;
+    transforms = res.metadata.transforms;
+    await writeCache(file, data);
+  }
+  const meta = await sharp(data).metadata();
+  const format = args.config['format'] ?? transforms.format ?? meta.format;
+  if (format !== undefined) transforms.format = format;
+  return { id, data, meta, transforms };
+}

@@ -1,0 +1,54 @@
+name: Release
+
+# Triggered by the tag that `pnpm release` (scripts/release.mjs → changelogen) creates and you
+# push. Builds, gates, publishes turbopack-imagetools to npm with provenance via OIDC trusted
+# publishing, and creates the GitHub Release from the changelog.
+on:
+  push:
+    tags: ['v*']
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # GitHub Release
+      id-token: write # OIDC: npm trusted publishing + provenance
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # full history so changelogen can diff from the last tag
+          # Release steps talk to GitHub via the API tokens below, never git push.
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      # No pnpm cache here: this workflow publishes to npm, and restoring a
+      # shared cache into a publish job is a cache-poisoning vector.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+          registry-url: 'https://registry.npmjs.org'
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+
+      # Gate before the irreversible publish.
+      - run: pnpm build
+      - run: pnpm test
+
+      # `pnpm pack` produces the exact tarball users install; `npm publish` does OIDC trusted
+      # publishing (no token) + provenance.
+      - run: pnpm -C packages/turbopack-imagetools pack
+      - run: npm publish packages/turbopack-imagetools/turbopack-imagetools-*.tgz --provenance --access public
+
+      # Create the GitHub Release from the changelog (after npm succeeds).
+      - run: pnpm -C packages/turbopack-imagetools exec changelogen gh release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

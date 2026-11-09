@@ -1,0 +1,78 @@
+name: '🐛 Bug report'
+description: Report a problem with turbopack-imagetools
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+
+        Before submitting, please check the [README](https://github.com/awdr74100/turbopack-imagetools#readme) and [existing issues](https://github.com/awdr74100/turbopack-imagetools/issues?q=is%3Aissue) to avoid duplicates.
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is — what you expected to happen and what actually happened. If you intend to submit a PR for this issue, tell us in the description.
+      placeholder: I import ... I expect ... but what actually happens is ...
+    validations:
+      required: true
+  - type: input
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: A link to a minimal repository (or StackBlitz) that reproduces the problem. Bugs with a reproduction get fixed much faster.
+      placeholder: https://github.com/you/repro
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Steps to reproduce
+      description: Include the exact import (with its query) and the command you ran.
+      placeholder: |
+        1. import hero from './hero.jpg?w=400;800&format=webp&as=srcset'
+        2. Run `next build`
+        3. The page requests ... which returns 404
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Where does it happen?
+      multiple: true
+      options:
+        - next dev
+        - next build + next start
+        - output: 'export'
+        - Static / prerendered route
+        - Dynamic (SSR) route
+        - Edge runtime
+        - Client component / CSR
+        - Pages Router
+        - TypeScript types only
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Output of `npx envinfo --system --binaries --npmPackages next,turbopack-imagetools,sharp,imagetools-core`, plus your package manager.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Relevant build or dev-server output. Please copy-paste text instead of screenshots where possible.
+  - type: checkboxes
+    id: validations
+    attributes:
+      label: Validations
+      description: Before submitting the issue, please make sure you do the following
+      options:
+        - label: Check that there isn't [already an issue](https://github.com/awdr74100/turbopack-imagetools/issues?q=is%3Aissue) that reports the same bug to avoid creating a duplicate.
+          required: true
+        - label: Check that the bug still reproduces on the latest version of `turbopack-imagetools`.
+          required: true
+        - label: Note whether it still happens after deleting `.next` and `node_modules/.cache/turbopack-imagetools` (either answer helps — say which in the description).
+          required: true

@@ -1,0 +1,40 @@
+name: '🚀 Feature request'
+description: Propose a new feature or improvement
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your interest in the project!
+
+        Transformations stay visible in the import that uses them — proposals that move them into configuration ("magic" transforms) are out of scope.
+  - type: textarea
+    id: problem-description
+    attributes:
+      label: Problem description
+      description: Describe the problem you're trying to solve, not just the solution. If you intend to submit a PR for this feature, tell us in the description.
+      placeholder: As a developer I want [goal] so that [benefit].
+    validations:
+      required: true
+  - type: textarea
+    id: suggested-solution
+    attributes:
+      label: Suggested solution
+      description: How you imagine this working — a new directive, output format, option, etc.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+  - type: checkboxes
+    id: validations
+    attributes:
+      label: Validations
+      options:
+        - label: Check that there isn't [already an issue](https://github.com/awdr74100/turbopack-imagetools/issues?q=is%3Aissue) that requests the same feature to avoid creating a duplicate.
+          required: true

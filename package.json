@@ -1,0 +1,37 @@
+{
+  "name": "turbopack-imagetools-monorepo",
+  "private": true,
+  "description": "Build-time image transforms for Next.js with Turbopack, powered by imagetools-core.",
+  "license": "MIT",
+  "author": "Roya <a78945612385238@gmail.com>",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -C packages/turbopack-imagetools run build",
+    "check": "pnpm typecheck && pnpm lint && pnpm lint:english && pnpm format:check && pnpm knip",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "knip": "knip",
+    "knip:fix": "knip --fix",
+    "lint": "oxlint --deny-warnings .",
+    "lint:english": "node scripts/check-english.mjs",
+    "lint:fix": "oxlint --fix .",
+    "release": "node scripts/release.mjs",
+    "test": "vitest run",
+    "typecheck": "pnpm -r run typecheck && tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "changelogen": "^0.6.2",
+    "knip": "^6.44.2",
+    "oxfmt": "^0.77.0",
+    "oxlint": "^1.92.0",
+    "playwright": "^1.65.0",
+    "sharp": "^0.35.5",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.12"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "packageManager": "pnpm@11.24.0"
+}

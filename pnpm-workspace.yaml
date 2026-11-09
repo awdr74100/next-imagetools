@@ -1,0 +1,8 @@
+packages:
+  - 'packages/*'
+  - 'fixtures/*'
+
+onlyBuiltDependencies:
+  - sharp
+  - oxlint
+  - oxfmt

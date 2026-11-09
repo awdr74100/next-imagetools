@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/.next/**",
+    "**/out/**",
+    "**/next-env.d.ts",
+    "pnpm-lock.yaml"
+  ],
+  "arrowParens": "avoid",
+  "singleQuote": true,
+  "printWidth": 100,
+  "sortImports": {},
+  "sortPackageJson": {
+    "sortScripts": true
+  },
+  "jsdoc": {}
+}
