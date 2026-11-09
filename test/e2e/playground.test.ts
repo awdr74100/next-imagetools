@@ -34,10 +34,25 @@ describe('playground', () => {
       await Promise.all(imgs.map(i => i.decode().catch(() => {})));
       return imgs.map(i => ({ src: i.currentSrc || i.src, ok: i.complete && i.naturalWidth > 0 }));
     });
-    expect(images).toHaveLength(12);
+    expect(images).toHaveLength(16);
     expect(images.filter(i => !i.ok)).toEqual([]);
-    expect(images.every(i => i.src.includes('/_next/static/media/'))).toBe(true);
+    // generated files, next/image's optimizer serving them, or inlined placeholders
+    const origin = (src: string) =>
+      /\/_next\/static\/media\//.test(src)
+        ? 'media'
+        : /\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2F/.test(src)
+          ? 'next/image'
+          : src.startsWith('data:image/webp;base64,')
+            ? 'placeholder'
+            : `unexpected: ${src}`;
+    expect(new Set(images.map(i => origin(i.src)))).toEqual(
+      new Set(['media', 'next/image', 'placeholder']),
+    );
     expect(failed).toEqual([]);
+
+    // the as=next image is server-rendered with next/image's blur placeholder
+    const html = await (await fetch(server.base)).text();
+    expect(html).toMatch(/background-image:url\(&quot;data:image\/svg\+xml/);
 
     // one size per format, all non-zero
     const sizes = await page.locator('ul.sizes li').allTextContents();

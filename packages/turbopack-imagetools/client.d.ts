@@ -25,6 +25,32 @@ interface ImagetoolsMetadata extends Omit<import('sharp').Metadata, 'width' | 'h
   width: number;
   height: number;
   format: string;
+  /** With the `placeholder` directive: a blurred data URL, or `#rrggbb` for `placeholder=color`. */
+  placeholder?: string;
+}
+
+/**
+ * `as=next`: structurally Next.js' `StaticImageData`, so it goes straight into next/image,
+ * `placeholder="blur"` included.
+ */
+interface ImagetoolsStaticImage {
+  src: string;
+  width: number;
+  height: number;
+  blurDataURL: string;
+  blurWidth: number;
+  blurHeight: number;
+}
+
+declare module '*as=next' {
+  const image: ImagetoolsStaticImage;
+  export default image;
+  export const src: ImagetoolsStaticImage['src'];
+  export const width: ImagetoolsStaticImage['width'];
+  export const height: ImagetoolsStaticImage['height'];
+  export const blurDataURL: ImagetoolsStaticImage['blurDataURL'];
+  export const blurWidth: ImagetoolsStaticImage['blurWidth'];
+  export const blurHeight: ImagetoolsStaticImage['blurHeight'];
 }
 
 declare module '*&as=metadata&imagetools' {
@@ -89,17 +115,19 @@ declare module '*as=srcset' {
 }
 
 declare module '*as=img' {
-  const img: import('imagetools-core').Img;
+  const img: import('imagetools-core').Img & { placeholder?: string };
   export default img;
   export const src: import('imagetools-core').Img['src'];
   export const w: import('imagetools-core').Img['w'];
   export const h: import('imagetools-core').Img['h'];
   export const srcset: import('imagetools-core').Img['srcset'];
+  export const placeholder: string | undefined;
 }
 
 declare module '*as=picture' {
-  const picture: import('imagetools-core').Picture;
+  const picture: import('imagetools-core').Picture & { placeholder?: string };
   export default picture;
   export const sources: import('imagetools-core').Picture['sources'];
+  export const placeholder: string | undefined;
   export const img: import('imagetools-core').Picture['img'];
 }

@@ -237,6 +237,12 @@ type Expected = {
   width: number;
   height?: number;
   format: 'webp' | 'avif' | 'jpeg';
+  /**
+   * How far each channel of the corner pixel may be from the source's background. An 8px
+   * placeholder averages a large area into each pixel, so it gets more room — still far less than
+   * the distance between the blue and the red source the suites switch between.
+   */
+  tolerance?: number;
 };
 
 const parseSrcset = (s: string) =>
@@ -276,6 +282,30 @@ function expectedImages(html: string): Expected[] {
     { label: 'clamped 1/2', url: data.heroClamped[0], width: 1600, format: 'webp' },
     { label: 'clamped 2/2', url: data.heroClamped[1], width: 1600, format: 'webp' },
     { label: 'preset=thumb', url: data.heroThumb, width: 120, format: 'webp' },
+    { label: 'as=next', url: data.heroNext.src, width: 600, format: 'webp' },
+    {
+      label: 'as=next blurDataURL',
+      url: data.heroNext.blurDataURL,
+      width: 8,
+      height: 5,
+      format: 'webp',
+      tolerance: 60,
+    },
+    {
+      label: 'placeholder variant',
+      url: data.heroPlaceholder.src,
+      width: 320,
+      height: 320,
+      format: 'webp',
+    },
+    {
+      label: 'placeholder',
+      url: data.heroPlaceholder.placeholder,
+      width: 8,
+      height: 8,
+      format: 'webp',
+      tolerance: 60,
+    },
     { label: 'accented file name', url: data.accented, width: 40, format: 'webp' },
     ...fromSrcset('spaced file name srcset', data.spacedSrcset, 'webp'),
     // fetch() decodes data: URLs too, so an inlined image goes through the same checks
@@ -308,6 +338,16 @@ function expectedImages(html: string): Expected[] {
   expect(parseSrcset(data.spacedSrcset).map(s => s.width)).toEqual([40, 80]);
   expect(data.spacedSrcset).toMatch(/\/my%20photo%20\(1\)\.jpg\./);
   expect(data.heroInline, 'inline gives a data URL').toMatch(/^data:image\/webp;base64,/);
+  expect(data.heroNext, 'as=next is StaticImageData for the largest variant').toMatchObject({
+    width: 600,
+    height: 375,
+    blurWidth: 8,
+    blurHeight: 5,
+    blurDataURL: expect.stringMatching(/^data:image\/webp;base64,/),
+  });
+  expect(data.heroPlaceholder.placeholder, 'placeholder on as=img').toMatch(
+    /^data:image\/webp;base64,/,
+  );
   expect(data.heroDims, 'custom output format from the config file').toEqual([
     { w: 100 },
     { w: 200 },
@@ -367,7 +407,7 @@ export async function verifyHtml(
       expect(
         Math.abs(px[c] - color[c]),
         `${img.label} pixel ${c} (got ${JSON.stringify(px)})`,
-      ).toBeLessThan(25);
+      ).toBeLessThan(img.tolerance ?? 25);
     }
   }
   return images;
@@ -384,9 +424,26 @@ export async function verifyInBrowser(browser: Browser, base: string, route: str
   page.on('response', r => {
     if (r.status() >= 400) failed.push(`${r.status()} ${r.url()}`);
   });
+  // next/image shows the blur placeholder only until the image loads, then removes it, so record
+  // the style #next has when it first appears — server-rendered or rendered on the client
+  await page.addInitScript(() => {
+    const record = window as unknown as { firstNextStyle?: string };
+    new MutationObserver(() => {
+      const el = document.querySelector('#next');
+      if (el && record.firstNextStyle === undefined) {
+        record.firstNextStyle = el.getAttribute('style') ?? '';
+      }
+    }).observe(document, { childList: true, subtree: true });
+  });
   try {
     await page.goto(base + route);
     await expect.poll(() => page.locator('#mode').textContent(), { timeout: 30_000 }).toBe(mode);
+    const firstStyle = await page.evaluate(
+      () => (window as unknown as { firstNextStyle?: string }).firstNextStyle,
+    );
+    expect(firstStyle, `${route}: next/image starts with the as=next blur placeholder`).toMatch(
+      /background-image:\s*url\("?data:image\/svg\+xml/,
+    );
     await page.locator('button', { hasText: 'show' }).click();
     await page.locator('#hidden').waitFor();
     const broken = await page.evaluate(async () => {

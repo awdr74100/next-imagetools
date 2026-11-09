@@ -1,5 +1,6 @@
 import Image from 'next/image';
 
+import { PlaceholderDemo } from '../components/placeholder-demo';
 import { Zoom } from '../components/zoom';
 import badgeAvif from '../images/badge.png?w=200&format=avif&imagetools';
 import badgeWebp from '../images/badge.png?w=200&format=webp&imagetools';
@@ -60,6 +61,15 @@ export default function Page() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section>
+        <h2>Blur placeholder</h2>
+        <p>
+          <code>as=next</code> returns what a plain Next.js image import does — blur placeholder
+          included — for the variants you ask for.
+        </p>
+        <PlaceholderDemo />
       </section>
 
       <section>
