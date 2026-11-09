@@ -13,4 +13,6 @@ const nextConfig: NextConfig = {
 
 export default withImagetools(nextConfig, {
   presets: { thumb: 'w=120&format=webp' },
+  // imports from here keep Next.js' own handling, query or not
+  exclude: ['images/raw/**'],
 });

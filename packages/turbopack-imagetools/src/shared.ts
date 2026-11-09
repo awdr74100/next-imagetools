@@ -28,6 +28,13 @@ export interface LoaderOptions {
   defaultDirectives?: Directives;
   /** Named directive sets, applied with `preset=<name>` in an import's query. */
   presets?: Record<string, Directives>;
+  /**
+   * Only handle imports whose path, relative to the Next.js app, matches one of these globs (e.g.
+   * `src/assets/**`). Default: every path.
+   */
+  include?: string[];
+  /** Never handle imports whose path, relative to the Next.js app, matches one of these globs. */
+  exclude?: string[];
 }
 
 export const toParams = (directives: Directives | undefined): URLSearchParams | undefined =>

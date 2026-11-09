@@ -12,6 +12,8 @@ import heroMeta, {
   width as namedWidth,
 } from '../images/hero.jpg?w=500&format=webp&as=metadata&imagetools';
 import plain from '../images/hero.jpg';
+// excluded in next.config.ts: the query is ignored and Next.js returns its usual StaticImageData
+import excluded from '../images/raw/photo.jpg?w=10&format=webp&imagetools';
 import Hidden from './hidden';
 
 // Rendered by every route in the mode matrix (static, SSR, edge, CSR, Pages Router, export).
@@ -64,6 +66,7 @@ export default function ImageGrid({ mode }: { mode: string }) {
             heroGallery,
             heroClamped,
             heroThumb,
+            excluded,
             named: { src: namedSrc, width: namedWidth },
             heroSrcset,
             heroPicture,
