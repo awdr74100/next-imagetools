@@ -74,6 +74,7 @@ declare module '*as=metadata&imagetools' {
   export const hasProfile: ImagetoolsMetadata['hasProfile'];
   export const hasAlpha: ImagetoolsMetadata['hasAlpha'];
   export const orientation: ImagetoolsMetadata['orientation'];
+  export const placeholder: ImagetoolsMetadata['placeholder'];
 }
 
 declare module '*as=metadata&imagetools-gallery' {
@@ -97,6 +98,7 @@ declare module '*as=meta&imagetools' {
   export const hasProfile: ImagetoolsMetadata['hasProfile'];
   export const hasAlpha: ImagetoolsMetadata['hasAlpha'];
   export const orientation: ImagetoolsMetadata['orientation'];
+  export const placeholder: ImagetoolsMetadata['placeholder'];
 }
 
 declare module '*as=meta&imagetools-gallery' {

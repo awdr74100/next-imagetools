@@ -95,6 +95,10 @@ describe('module loader', () => {
     await expect(runModule('?w=400&format=webp&as=img&imagetools')).rejects.toThrow(
       /as=img is typed without a marker/,
     );
+    await expect(runModule('?as=metadata&w=400&format=webp&imagetools')).rejects.toThrow(
+      'next-imagetools: hero.jpg?as=metadata&w=400&format=webp&imagetools: &imagetools types ' +
+        'this import as metadata only when as=metadata comes right before it',
+    );
     await expect(
       runModule('?preset=pair&imagetools-gallery', { presets: { pair: 'w=400;800&format=webp' } }),
     ).resolves.toBeTypeOf('string');

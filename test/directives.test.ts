@@ -166,4 +166,22 @@ describe('checkMarker', () => {
       /^as=metadata:width;height has no marker type/,
     );
   });
+
+  // the client types match `*as=metadata&imagetools`; anything else ending in the marker matches
+  // `*&imagetools`, a URL, though the import gives metadata
+  it('rejects metadata whose as= is not right before the marker', () => {
+    expect(checkMarker('?as=metadata&w=400&imagetools', 'metadata', 1)).toBe(
+      '&imagetools types this import as metadata only when as=metadata comes right before it; ' +
+        'here it types as a URL. Move as=metadata to the end: …&as=metadata&imagetools.',
+    );
+    expect(checkMarker('?as=meta&w=400;800&imagetools-gallery', 'meta', 2)).toMatch(
+      /only when as=meta comes right before it/,
+    );
+    expect(checkMarker('?preset=meta&imagetools', 'metadata', 1)).toBe(
+      'as=metadata comes from a preset or the defaults, so &imagetools types this import as a ' +
+        'URL; put as=metadata in the query, right before &imagetools.',
+    );
+    // a URL types as a URL wherever `as` is
+    expect(checkMarker('?as=url&w=400&imagetools', 'url', 1)).toBeUndefined();
+  });
 });

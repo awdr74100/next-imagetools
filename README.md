@@ -227,7 +227,7 @@ import metas from './photo.jpg?w=400;800&as=metadata&imagetools-gallery'; // Ima
 import srcset from './photo.jpg?w=400;800&format=webp&as=srcset'; // string, no marker needed
 ```
 
-**The build checks every marker.** One that doesn't match what the import gives — `&imagetools` on a query that makes two images — fails the build and says which marker to use, so a type can't be silently wrong.
+**The build checks every marker.** One that doesn't match what the import gives — `&imagetools` on a query that makes two images, or after `as=metadata` with another directive in between (`?as=metadata&w=800&imagetools` types as a URL) — fails the build and says what to change, so a type can't be silently wrong.
 
 Markers only select the type: a marked and an unmarked import of the same image share their output files. They are the markers commonly used with vite-imagetools.
 
