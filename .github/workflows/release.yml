@@ -37,7 +37,10 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
+      # Only Chromium's headless shell, as in CI: the runner images already carry its system
+      # libraries, and `--with-deps` would make a release depend on apt's mirrors. Not cached, like
+      # pnpm above.
+      - run: pnpm exec playwright install --only-shell chromium
 
       # Gate before the irreversible publish.
       - run: pnpm build
