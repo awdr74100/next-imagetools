@@ -155,11 +155,13 @@ import photo from './photo.jpg?w=400;800&format=webp&as=img';
 <img src={photo.src} srcSet={photo.srcset} width={photo.w} height={photo.h} alt="" />;
 ```
 
-**`as=picture`** — `{ sources, img }`: a `srcset` per format, and a fallback `<img>` built from the **last** format. List the format you want as fallback last.
+**`as=picture`** — `{ sources, img }`: a `srcset` per format for `<source>`, and a fallback `<img>` from the **last** format, so list the format you want as fallback last. The fallback format also gets a source when it has several sizes, so browsers without AVIF or WebP still pick a fitting size. Format keys are MIME subtypes (`jpeg`, not `jpg`).
 
 ```ts
 import photo from './photo.jpg?w=400;800&format=avif;webp;jpg&as=picture';
-// photo.sources → { avif: "…", webp: "…" }, photo.img → { src, w, h } (jpg)
+// photo.sources → { avif: "…", webp: "…", jpeg: "…" }, photo.img → { src, w, h } (the 800px jpg)
+import single from './photo.jpg?w=800&format=avif;jpg&as=picture';
+// single.sources → { avif: "…" }: one fallback size needs no source
 ```
 
 **`as=metadata`** (or `as=meta`) — the image's metadata: `src`, `width`, `height`, `format`, and everything else [sharp reports](https://sharp.pixelplumbing.com/api-input#metadata) (`channels`, `hasAlpha`, `space`, …). An array when there are several images. Narrow it to specific keys with `as=metadata:width;height`.
@@ -169,7 +171,14 @@ import photo from './photo.jpg?w=800&format=webp&as=metadata';
 // { src: "…", width: 800, height: 533, format: "webp", … }
 ```
 
-**Named imports.** When the result is a single object (`as=metadata`, `as=img`, `as=picture`), its keys are also exported by name:
+**`as=next`** — what a plain Next.js image import gives you (`StaticImageData`): `src`, `width`, `height`, and a `blurDataURL` with its `blurWidth` / `blurHeight`, for the largest variant. It goes straight into `next/image`, blur placeholder included — see [Blur placeholders](#blur-placeholders).
+
+```ts
+import photo from './photo.jpg?w=640;1280&format=webp&as=next';
+// { src: "…", width: 1280, height: 853, blurDataURL: "data:image/webp;base64,…", blurWidth: 8, blurHeight: 5 }
+```
+
+**Named imports.** When the result is a single object (`as=metadata`, `as=img`, `as=picture`, `as=next`), its keys are also exported by name:
 
 ```ts
 import { src, width, height } from './photo.jpg?w=800&format=webp&as=metadata';
@@ -205,6 +214,34 @@ import metas from './photo.jpg?w=400;800&as=metadata&imagetools-gallery'; // Ima
 The markers only select the type and are removed before processing, so a marked and an unmarked import of the same image share their output files. They are the same markers commonly used with vite-imagetools.
 
 ## Recipes
+
+### Blur placeholders
+
+`as=next` returns the same shape as a plain Next.js image import, so `placeholder="blur"` works as usual:
+
+```tsx
+import Image from 'next/image';
+
+import photo from './photo.jpg?w=640;1280&format=webp&as=next';
+
+<Image src={photo} placeholder="blur" sizes="(min-width: 768px) 50vw, 100vw" alt="" />;
+```
+
+The `blurDataURL` is made the way Next.js makes its own: the image shrunk to 8 pixels on its longer side, inlined as a data URL, and blurred by `next/image` while the real image loads.
+
+For other outputs, add the **`placeholder`** directive to put a placeholder on the result — one import for the image and its placeholder:
+
+```ts
+import avatar from './me.jpg?w=96&h=96&fit=cover&format=webp&placeholder=color&as=img';
+// photo.placeholder → "data:image/webp;base64,…" (8px on its longer side; blur it with CSS)
+import photo from './photo.jpg?w=400;800&format=avif;webp;jpg&placeholder&as=picture';
+// avatar.placeholder → "#48a898", the dominant color
+```
+
+- `placeholder` / `placeholder=blur` — a tiny image as a data URL
+- `placeholder=color` — the dominant color, `#rrggbb`
+
+Placeholders are made from the processed image, so a cropped variant gets a placeholder of the same shape — no jump when the image arrives. `placeholder` works with the object outputs (`as=img`, `as=picture`, `as=metadata` for one image); on a URL or `srcset` string there is nowhere to put it, and the build says so.
 
 ### With `next/image`
 

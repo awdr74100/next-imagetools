@@ -91,11 +91,22 @@ describe('module loader', () => {
     expect(value).toBe('{"width":300,"height":188}');
   });
 
-  it('as=picture lists every format but the last as a source, and uses the last as fallback', async () => {
-    const code = await runModule('?w=300&format=avif;webp;jpg&as=picture');
-    expect(code).toMatch(/"sources":\{"avif":"[^}]*","webp":"[^}]*"\}/);
-    expect(code).not.toMatch(/"sources":\{[^}]*"jpe?g"/);
-    expect(code).toMatch(/"img":\{"src":"" \+ __tpit_url\(__tpit_2\)/);
+  describe('as=picture (as the README documents it)', () => {
+    it('uses the last format as fallback, without a source when it has one size', async () => {
+      const code = await runModule('?w=300&format=avif;webp;jpg&as=picture');
+      expect(code).toMatch(/"sources":\{"avif":"[^}]*","webp":"[^}]*"\}/);
+      expect(code).not.toMatch(/"sources":\{[^}]*"jpe?g"/);
+      expect(code).toMatch(/"img":\{"src":"" \+ __tpit_url\(__tpit_2\)/);
+    });
+
+    it('gives the fallback format a source too when it has several sizes, keyed jpeg', async () => {
+      const value = exported(await runModule('?w=400;800&format=avif;webp;jpg&as=picture')) as {
+        sources: Record<string, string>;
+        img: { w: number };
+      };
+      expect(Object.keys(value.sources)).toEqual(['avif', 'webp', 'jpeg']);
+      expect(value.img.w).toBe(800);
+    });
   });
 
   describe('return shape follows the query, not the source size', () => {
@@ -472,6 +483,85 @@ describe('module loader', () => {
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
+    });
+  });
+
+  describe('as=next and placeholder', () => {
+    type Blurred = { blurDataURL: string; blurWidth: number; blurHeight: number };
+    const decode = (dataUrl: string) =>
+      sharp(Buffer.from(dataUrl.split(',')[1]!, 'base64')).metadata();
+
+    it('as=next has the shape of a Next.js static image import, for the largest variant', async () => {
+      const value = exported(await runModule('?w=400;800&format=webp&as=next')) as Blurred & {
+        src: string;
+        width: number;
+        height: number;
+      };
+      expect(value).toMatchObject({
+        src: '#1',
+        width: 800,
+        height: 500,
+        blurWidth: 8,
+        blurHeight: 5,
+      });
+      expect(await decode(value.blurDataURL)).toMatchObject({
+        format: 'webp',
+        width: 8,
+        height: 5,
+      });
+    });
+
+    it('sizes the blur by the longer side, like Next.js, also for portrait images', async () => {
+      const value = exported(
+        await runModule('?w=100&h=400&fit=cover&format=webp&as=next'),
+      ) as Blurred;
+      expect([value.blurWidth, value.blurHeight]).toEqual([2, 8]);
+    });
+
+    it('adds a blurred placeholder to object outputs, matching the cropped variant', async () => {
+      const value = exported(
+        await runModule('?w=300&h=300&fit=cover&format=webp&placeholder&as=img'),
+      ) as { placeholder: string };
+      expect(await decode(value.placeholder)).toMatchObject({ width: 8, height: 8 });
+    });
+
+    it('placeholder=color gives the dominant color', async () => {
+      // the unit source is a flat blue: 30, 120, 200
+      const value = exported(
+        await runModule('?w=400;800&format=webp;jpg&placeholder=color&as=picture'),
+      ) as { placeholder: string };
+      expect(value.placeholder).toMatch(/^#[0-9a-f]{6}$/);
+      const [r, g, b] = [1, 3, 5].map(i => Number.parseInt(value.placeholder.slice(i, i + 2), 16));
+      expect(Math.abs(r! - 30) + Math.abs(g! - 120) + Math.abs(b! - 200)).toBeLessThan(40);
+    });
+
+    it('works with as=metadata', async () => {
+      const value = exported(
+        await runModule('?w=300&format=webp&placeholder=blur&as=metadata:width'),
+      ) as { width: number; placeholder: string };
+      expect(value.width).toBe(300);
+      expect(value.placeholder).toMatch(/^data:image\/webp;base64,/);
+    });
+
+    it.each([
+      ['?w=300&format=webp&placeholder', 'a URL string'],
+      ['?w=300;600&format=webp&placeholder&as=srcset', 'a srcset string'],
+      ['?w=300;600&format=webp&placeholder&as=metadata', 'an array'],
+    ])('rejects %s, which gives %s', async query => {
+      await expect(runModule(query)).rejects.toThrow('placeholder needs a single object result');
+    });
+
+    it('rejects an unknown placeholder kind', async () => {
+      await expect(runModule('?w=300&format=webp&placeholder=fuzzy&as=img')).rejects.toThrow(
+        'placeholder=fuzzy is not valid',
+      );
+    });
+
+    it('does not change the cache entries of the image it describes', async () => {
+      await runModule('?w=222&format=webp&as=img');
+      const entries = readdirSync(cacheDir).length;
+      await runModule('?w=222&format=webp&placeholder&as=img');
+      expect(readdirSync(cacheDir)).toHaveLength(entries);
     });
   });
 

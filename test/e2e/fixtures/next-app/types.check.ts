@@ -1,3 +1,5 @@
+import type { StaticImageData } from 'next/image';
+
 // Type tests for turbopack-imagetools/client, run by `tsc --noEmit` (pnpm typecheck).
 // Each import must infer the shape the loader really returns; the @ts-expect-error lines fail the
 // typecheck if a pattern ever starts inferring something looser.
@@ -9,6 +11,8 @@ import meta, { hasAlpha, src, width } from './images/hero.jpg?w=500&as=metadata&
 import { sources } from './images/hero.jpg?w=400&format=avif;webp&as=picture';
 import picture from './images/hero.jpg?w=400;800&format=avif;webp&as=picture';
 import srcset from './images/hero.jpg?w=300;600&as=srcset';
+import nextImage from './images/hero.jpg?w=400;800&format=webp&as=next';
+import withPlaceholder from './images/hero.jpg?w=400&placeholder&as=img';
 
 url satisfies string;
 gallery satisfies string[];
@@ -22,6 +26,8 @@ src satisfies string;
 width satisfies number;
 hasAlpha satisfies boolean | undefined;
 sources satisfies Record<string, string>;
+nextImage satisfies StaticImageData;
+withPlaceholder.placeholder satisfies string | undefined;
 
 // @ts-expect-error a single URL is not an array
 url satisfies string[];

@@ -21,6 +21,7 @@ import picomatch from 'picomatch';
 import sharp, { type Metadata } from 'sharp';
 
 import { checkDirectives, dropEmptyValues } from './directives';
+import { largest, nextFormat, placeholderKind, placeholderOf } from './placeholder';
 import {
   ANIMATED_FORMATS,
   MARKER,
@@ -56,7 +57,7 @@ const clamp = (s: string, n: number) =>
 
 // Output formats that always produce one value; identical variants would only repeat entries
 // (and a srcset may not list the same width twice), so they are dropped before formatting.
-const SINGLE_VALUE_FORMATS = new Set(['srcset', 'img', 'picture']);
+const SINGLE_VALUE_FORMATS = new Set(['srcset', 'img', 'picture', 'next']);
 
 const matchers = new Map<string, (path: string) => boolean>();
 const matcherFor = (globs: string[]) => {
@@ -153,8 +154,8 @@ async function load(this: LoaderContext): Promise<string> {
 
   const cacheDir = await prepareCache(this, options);
   const { config: userConfig, factories, hash: configHash } = await loadConfig(this, options);
-  const outputFormats: Record<string, OutputFormat> =
-    userConfig.extendOutputFormats?.(builtinOutputFormats) ?? builtinOutputFormats;
+  const builtins: Record<string, OutputFormat> = { ...builtinOutputFormats, next: nextFormat };
+  const outputFormats = userConfig.extendOutputFormats?.(builtins) ?? builtins;
 
   let configDefaults: URLSearchParams | undefined;
   // keys the config file's defaultDirectives reads, which makes custom ones (`?hero`) legitimate
@@ -178,6 +179,10 @@ async function load(this: LoaderContext): Promise<string> {
   // an inlined and a regular import of the same variant share one cache entry
   const inline = directives.has('inline');
   directives.delete('inline');
+  // so does `placeholder`, which describes the processed image rather than changing it
+  const placeholderValue = directives.get('placeholder');
+  directives.delete('placeholder');
+  const placeholder = placeholderValue === null ? undefined : placeholderKind(placeholderValue);
 
   dropEmptyValues(directives);
   const problems = checkDirectives(directives, outputFormats, consumed);
@@ -277,6 +282,21 @@ async function load(this: LoaderContext): Promise<string> {
   const format = outputFormat ? outputFormat(args ? args.split(';') : undefined) : urlFormat();
   const formatted = as && SINGLE_VALUE_FORMATS.has(as) ? uniqueByConfig(outputs) : outputs;
   const result = await format(formatted);
+
+  if (placeholder) {
+    // only an object has room for it: a URL or srcset string, or an array, would need a second
+    // import anyway
+    if (!result || typeof result !== 'object' || Array.isArray(result)) {
+      throw new Error(
+        'placeholder needs a single object result: use as=img, as=picture, as=metadata or ' +
+          'as=next, with one image per format.',
+      );
+    }
+    (result as Record<string, unknown>).placeholder = await placeholderOf(
+      placeholder,
+      largest(formatted),
+    );
+  }
 
   // JSON is valid JS; splice each placeholder out of its string literal and
   // into a reference to the imported asset URL.

@@ -16,6 +16,8 @@ import heroMeta, {
   src as namedSrc,
   width as namedWidth,
 } from '../images/hero.jpg?w=500&format=webp&as=metadata&imagetools';
+import heroNext from '../images/hero.jpg?w=300;600&format=webp&as=next';
+import heroPlaceholder from '../images/hero.jpg?w=320&h=320&fit=cover&format=webp&placeholder&as=img';
 import plain from '../images/hero.jpg';
 import spacedSrcset from '../images/my photo (1).jpg?w=40;80&format=webp&as=srcset';
 // excluded in next.config.ts: the query is ignored and Next.js returns its usual StaticImageData
@@ -46,6 +48,18 @@ export default function ImageGrid({ mode }: { mode: string }) {
           alt=""
         />
       </picture>
+
+      <h2>as=next with a blur placeholder, through next/image</h2>
+      {/* no `unoptimized`: the usual next/image path, optimizer included */}
+      <Image id="next" src={heroNext} placeholder="blur" sizes="300px" alt="" />
+      <img
+        id="placeholder"
+        src={heroPlaceholder.src}
+        width={heroPlaceholder.w}
+        height={heroPlaceholder.h}
+        style={{ backgroundImage: `url(${heroPlaceholder.placeholder})`, backgroundSize: 'cover' }}
+        alt=""
+      />
 
       <h2>metadata + next/image</h2>
       <Image
@@ -86,6 +100,8 @@ export default function ImageGrid({ mode }: { mode: string }) {
             heroPicture,
             heroMeta,
             plain,
+            heroNext,
+            heroPlaceholder,
           }),
         }}
       />
