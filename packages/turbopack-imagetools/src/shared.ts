@@ -54,7 +54,10 @@ export interface LoaderOptions {
    * functions; see `ImagetoolsConfig` in `turbopack-imagetools/config`.
    */
   configFile?: string;
-  /** Generate exact types for each import's query (default: true). */
+  /**
+   * Generate an exact type for each import's query (default: false). For the App Router: `next
+   * build` type-checks Pages Router apps before compiling, when there are none yet.
+   */
   types?: boolean;
   /** Where generated types go, relative to the Next.js app; set by withImagetools from distDir. */
   typesDir?: string;

@@ -73,7 +73,7 @@ export default withImagetools(nextConfig);
 
 Wrapping the config is how Next.js plugins hook in (`@next/mdx`, `@next/bundle-analyzer` and others work the same way). `withImagetools` only adds rules to `turbopack.rules`; the rest of your config is passed through untouched, and rules you already have for image files keep running first.
 
-With TypeScript, every image import gets an exact type generated for it — see [TypeScript](#typescript).
+With TypeScript, [reference the client types](#typescript) — or, with the App Router, have an exact type generated for every import.
 
 ## Usage
 
@@ -187,53 +187,56 @@ import { sources, img } from './photo.jpg?w=400;800&format=avif;webp&as=picture'
 
 ## TypeScript
 
-Every image import gets an exact type, generated as it is compiled — no setup, no hand-written declarations:
-
-```ts
-import url from './photo.jpg?w=800&format=webp'; // string
-import urls from './photo.jpg?w=400;800&format=webp'; // string[]
-import meta from './photo.jpg?w=800&as=metadata:width;height'; // { width: number; height: number }
-import photo from './photo.jpg?w=400;800&format=webp&placeholder&as=img'; // Img & { placeholder: string }
-import hero from './photo.jpg?w=640;1280&format=webp&as=next'; // StaticImageData shape
-```
-
-The loader writes a declaration per query during `next dev` and `next build` into `.next/types/turbopack-imagetools` (under your `distDir`), which the tsconfig Next.js generates already includes. Presets and `defaultDirectives` are taken into account. Turn it off with `types: false`.
-
-### Type-checking before a build
-
-A CI step that runs `tsc` before `next build` has no generated types yet. Generate them first — the command reads your `next.config` and scans your source for image imports:
-
-```bash
-turbopack-imagetools typegen && tsc --noEmit
-```
-
-It also removes declarations no import needs any more. (If you run `next typegen` for route types, run it first.)
-
-### Limits
-
-- A **path alias** import (`@/images/photo.jpg?…`) gets its type through a broader pattern than a relative one, so if you also use the type markers below, the two can compete; prefer one style.
-- A **custom output format** from a config file returns `unknown`; declare it yourself (see [Custom transforms and output formats](#custom-transforms-and-output-formats)).
-- The config file's **`defaultDirectives` function** runs per image, so it can change how many images an import produces. The build warns when that makes an import's generated type wrong.
-
-### Without generated types
-
-With `types: false`, or in an editor before the first build, reference the client types from any `.d.ts` in your app:
+Reference the client types from any `.d.ts` in your app:
 
 ```ts
 // imagetools.d.ts
 /// <reference types="turbopack-imagetools/client" />
 ```
 
-They type imports by **how the query ends**, since TypeScript allows a single `*` per module pattern. `as=srcset`, `as=img`, `as=picture` and `as=next` type on their own; for the URL and metadata outputs, end the query with a marker that says whether it gives one value or an array:
+They type imports by **how the query ends**, since TypeScript allows a single `*` per module pattern. `as=srcset`, `as=img`, `as=picture` and `as=next` type on their own, as long as `as=` comes last; for the URL and metadata outputs, end the query with a marker that says whether it gives one value or an array:
 
 ```ts
 import url from './photo.jpg?w=800&format=webp&imagetools'; // string
 import urls from './photo.jpg?w=400;800&format=webp&imagetools-gallery'; // string[]
 import meta from './photo.jpg?w=800&as=metadata&imagetools'; // ImagetoolsMetadata
 import metas from './photo.jpg?w=400;800&as=metadata&imagetools-gallery'; // ImagetoolsMetadata[]
+import srcset from './photo.jpg?w=400;800&format=webp&as=srcset'; // string
 ```
 
-The markers only select the type and are removed before processing, so a marked and an unmarked import of the same image share their output files. They are the same markers commonly used with vite-imagetools.
+The markers only select the type and are removed before processing, so a marked and an unmarked import of the same image share their output files. They are the markers commonly used with vite-imagetools.
+
+### Generated types (App Router)
+
+With the App Router, `types: true` generates an exact type for every import instead, with no markers:
+
+```ts
+export default withImagetools(nextConfig, { types: true });
+```
+
+```ts
+import url from './photo.jpg?w=800&format=webp'; // string
+import urls from './photo.jpg?w=400;800&format=webp'; // string[]
+import meta from './photo.jpg?w=800&as=metadata:width;height'; // { width: number; height: number }
+import photo from './photo.jpg?w=400;800&format=webp&placeholder&as=img'; // Img & { placeholder: string }
+```
+
+Declarations are written into `.next/types/turbopack-imagetools` (under your `distDir`), which the tsconfig Next.js generates already includes: by the loader as `next dev` compiles an import, and for the whole app after each production compile, so a build served from Turbopack's cache type-checks too. Presets and `defaultDirectives` are taken into account.
+
+Like Next.js' own route types, they exist once `next dev` or `next build` has run; before that, an editor shows unmarked imports as `Cannot find module`. A CI step that runs `tsc` before `next build` generates them first, as `next typegen` does for routes:
+
+```bash
+next typegen && turbopack-imagetools typegen && tsc --noEmit
+```
+
+The command reads your `next.config`, scans your source for image imports, and removes declarations no import needs any more.
+
+Limits:
+
+- **App Router only.** `next build` type-checks a Pages Router app before it processes any image, so the types don't exist yet at that point; the build warns when `types: true` is set in an app without an `app` directory. Use the markers there.
+- A **path alias** import (`@/images/photo.jpg?…`) gets its type through a broader pattern than a relative one, so if it also ends in a marker, the two can compete; prefer one style.
+- A **custom output format** from a config file returns `unknown`; declare it yourself (see [Custom transforms and output formats](#custom-transforms-and-output-formats)).
+- The config file's **`defaultDirectives` function** runs per image, so it can change how many images an import produces. The build warns when that makes an import's generated type wrong.
 
 ## Recipes
 
@@ -280,7 +283,7 @@ There are two ways to combine them:
 ```tsx
 import Image from 'next/image';
 
-import photo from './photo.jpg?w=1200&format=webp&as=metadata';
+import photo from './photo.jpg?w=1200&format=webp&as=metadata&imagetools';
 
 <Image src={photo.src} width={photo.width} height={photo.height} alt="" unoptimized />;
 ```
@@ -306,7 +309,7 @@ Nothing special is needed. Images are generated because they are imported, not b
 'use client';
 import { useState } from 'react';
 
-import zoomed from './photo.jpg?w=2000&format=webp';
+import zoomed from './photo.jpg?w=2000&format=webp&imagetools';
 
 export function Zoom() {
   const [open, setOpen] = useState(false);
@@ -344,7 +347,7 @@ export default withImagetools(nextConfig, {
   - `enabled` — set to `false` to process every image on every build. Default: `true`.
 - **`removeMetadata`** — strip EXIF, ICC, XMP and other private metadata from generated images. Default: `true`.
 - **`namedExports`** — also export the keys of object results by name, as in `import { width } from './a.jpg?as=metadata'`. Default: `true`.
-- **`types`** — generate an exact type for each import into `<distDir>/types/turbopack-imagetools` (see [TypeScript](#typescript)). Default: `true`.
+- **`types`** — generate an exact type for each import into `<distDir>/types/turbopack-imagetools`; App Router only (see [Generated types](#generated-types-app-router)). Default: `false`.
 - **`extensions`** — source file extensions handled when imported with a query. Default: `jpg`, `jpeg`, `png`, `webp`, `avif`, `gif`, `tiff`, `heif`.
 - **`include`** — globs; only imports whose path matches one of them are handled. Default: all.
 - **`exclude`** — globs; imports whose path matches one of them are never handled.
@@ -369,7 +372,7 @@ export default withImagetools(nextConfig, {
 
 ```ts
 import hero from './banner.jpg?preset=hero';
-import avatar from './me.jpg?preset=thumb';
+import avatar from './me.jpg?preset=thumb&imagetools';
 ```
 
 - **`presets`** — named directive sets, as a query string or an object. An unknown preset name fails the build.
@@ -438,7 +441,7 @@ declare module '*as=sizes' {
 
 ## Migrating from vite-imagetools
 
-Directives, output formats and the `&imagetools` type markers are the same, so most imports move over unchanged. Replace the Vite plugin with `withImagetools` in `next.config.ts`, and delete your hand-written module declarations: [types are generated](#typescript), and imports that keep their markers still type through the client types.
+Directives, output formats and the `&imagetools` type markers are the same, so most imports move over unchanged. Replace the Vite plugin with `withImagetools` in `next.config.ts`, and your hand-written module declarations with the [client types](#typescript) — or, with the App Router, [generated types](#generated-types-app-router), which need no markers.
 
 One deliberate difference: when values clamp to the source size and become identical, vite-imagetools merges them, so `w=1600;3000` on a 1600px source gives a single URL instead of an array. Here the array keeps both entries, so the shape of an import [follows from its query](#multiple-variants).
 
@@ -462,7 +465,7 @@ Generated files are named after their source: `hero.<hash>.jpg` when the format 
 
 **An image looks outdated, or a change doesn't show up.** Delete `.next` and `node_modules/.cache/turbopack-imagetools` and rebuild. If that fixes it, please [open an issue](https://github.com/awdr74100/turbopack-imagetools/issues/new/choose) — caches are supposed to invalidate on their own.
 
-**`Cannot find module './photo.jpg?…'` in TypeScript.** The import has no generated type yet: start `next dev` (or build) once, or run `turbopack-imagetools typegen` — needed before a `tsc` that runs ahead of the build. See [TypeScript](#typescript).
+**`Cannot find module './photo.jpg?…'` in TypeScript.** With the client types, the query needs to end in a marker or an `as=` that types on its own. With `types: true`, the import has no generated type yet: start `next dev` (or build) once, or run `turbopack-imagetools typegen` — needed before a `tsc` that runs ahead of the build. See [TypeScript](#typescript).
 
 **The build runs out of memory.** sharp encodes on Node's libuv thread pool — 4 threads per process by default — and Turbopack runs several loader worker processes, which all inherit the pool size. A smaller pool lowers peak memory for some speed:
 

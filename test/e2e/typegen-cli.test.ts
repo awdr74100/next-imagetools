@@ -74,4 +74,25 @@ describe.sequential('turbopack-imagetools typegen', () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it('fails clearly when generated types are off, their default', () => {
+    // resolves next and turbopack-imagetools from the fixture above it
+    const dir = path.join(APP, '.next', 'types-off');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(path.join(dir, 'package.json'), '{}');
+    writeFileSync(
+      path.join(dir, 'next.config.mjs'),
+      "import { withImagetools } from 'turbopack-imagetools';\nexport default withImagetools({});",
+    );
+    try {
+      const result = spawnSync(process.execPath, [CLI, 'typegen', dir], {
+        cwd: APP,
+        encoding: 'utf8',
+      });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toMatch(/Generated types are off: pass `types: true`/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

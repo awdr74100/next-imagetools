@@ -65,15 +65,15 @@ export function* findImports(
   }
 }
 
-export async function typegen(
-  dir: string,
-): Promise<{ written: number; removed: number; typesDir: string }> {
+interface Generated {
+  written: number;
+  removed: number;
+  typesDir: string;
+}
+
+/** `turbopack-imagetools typegen`: reads the options from the app's next.config. */
+export async function typegen(dir: string): Promise<Generated> {
   const appRequire = createRequire(path.join(dir, 'package.json'));
-  const ts = loadFrom<typeof import('typescript')>(
-    appRequire,
-    'typescript',
-    'to find image imports',
-  );
   const nextConfigModule = await import(
     pathToFileURL(appRequire.resolve('next/dist/server/config')).href
   );
@@ -86,13 +86,34 @@ export async function typegen(
       `next.config in ${dir} doesn't use withImagetools, so there is nothing to generate types for.`,
     );
   }
-  const { options, extensions } = found;
+  if (!found.options.typesDir) {
+    throw new Error('Generated types are off: pass `types: true` to withImagetools to use them.');
+  }
+  return writeProjectTypes(dir, found.options, found.extensions, config.distDir ?? '.next');
+}
+
+/**
+ * Writes a declaration for every image import under `dir` and removes the ones no import needs.
+ * Also runs after `next build` compiles, since the build empties `<distDir>/types` first and
+ * Turbopack's cache can skip the loaders that would write them again.
+ */
+export function writeProjectTypes(
+  dir: string,
+  options: LoaderOptions,
+  extensions: Set<string>,
+  distDir: string,
+): Generated {
+  const ts = loadFrom<typeof import('typescript')>(
+    createRequire(path.join(dir, 'package.json')),
+    'typescript',
+    'to find image imports',
+  );
   const typesDir = path.resolve(dir, options.typesDir ?? '.next/types/turbopack-imagetools');
   const include = options.include?.length ? picomatch(options.include, { dot: true }) : undefined;
   const exclude = options.exclude?.length ? picomatch(options.exclude, { dot: true }) : undefined;
 
   const queries = new Set<string>();
-  const skip = new Set([path.resolve(dir, config.distDir ?? '.next')]);
+  const skip = new Set([path.resolve(dir, distDir)]);
   for (const { file, specifier } of findImports(dir, ts, skip)) {
     const at = specifier.indexOf('?');
     const target = specifier.slice(0, at);
@@ -138,6 +159,6 @@ function loadFrom<T>(require: NodeJS.Require, name: string, why: string): T {
   try {
     return require(name) as T;
   } catch {
-    throw new Error(`turbopack-imagetools typegen needs ${name} installed in your app ${why}.`);
+    throw new Error(`turbopack-imagetools needs ${name} installed in your app ${why}.`);
   }
 }

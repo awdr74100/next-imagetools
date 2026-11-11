@@ -1,9 +1,10 @@
 // withImagetools() only rewrites next.config, so it is tested as a plain function on the built
 // package. What Turbopack then does with the rules is covered by the build/dev/mode suites.
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type * as Package from '../packages/turbopack-imagetools/dist/index.cjs';
 
@@ -125,19 +126,7 @@ describe('withImagetools', () => {
         cache: { dir: '.cache/x' },
         removeMetadata: false,
         namedExports: false,
-        typesDir: '.next/types/turbopack-imagetools',
       });
-  });
-
-  it('puts generated types under the distDir, where Next.js keeps its own', () => {
-    const typesDir = (config: NextConfig) =>
-      rulesFor(withImagetools(config, { extensions: ['jpg'] }), '*.jpg')!.map(
-        r => (r.loaders as { options: { typesDir: string } }[])[0]!.options.typesDir,
-      );
-    expect(new Set(typesDir({}))).toEqual(new Set(['.next/types/turbopack-imagetools']));
-    expect(new Set(typesDir({ distDir: 'build' }))).toEqual(
-      new Set(['build/types/turbopack-imagetools']),
-    );
   });
 
   it('does not mutate the config it was given', () => {
@@ -145,5 +134,105 @@ describe('withImagetools', () => {
     const snapshot = JSON.stringify(input);
     withImagetools(input);
     expect(JSON.stringify(input)).toBe(snapshot);
+  });
+});
+
+describe('generated types (types: true)', () => {
+  const loaderOptions = (config: NextConfig) =>
+    rulesFor(config, '*.jpg')!.map(
+      r => (r.loaders as { options: { typesDir?: string } }[])[0]!.options,
+    );
+  type Hook = (metadata: { projectDir: string; distDir: string }) => Promise<void>;
+  const hookOf = (config: NextConfig) =>
+    (config.compiler as { runAfterProductionCompile?: Hook } | undefined)
+      ?.runAfterProductionCompile;
+
+  // inside the repo, so the hook resolves typescript the way it would from an app
+  const dirs: string[] = [];
+  const project = (files: Record<string, string>) => {
+    const dir = mkdtempSync(path.join(import.meta.dirname, '.tmp-types-'));
+    dirs.push(dir);
+    for (const [file, content] of Object.entries(files)) {
+      mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
+      writeFileSync(path.join(dir, file), content);
+    }
+    return dir;
+  };
+  afterEach(() => {
+    vi.restoreAllMocks();
+    for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('are off by default: no typesDir for the loaders, no build hook', () => {
+    const config = withImagetools({}, { extensions: ['jpg'] });
+    for (const o of loaderOptions(config)) expect(o.typesDir).toBeUndefined();
+    expect(config.compiler).toBeUndefined();
+  });
+
+  it('go under the distDir, where Next.js keeps its own', () => {
+    const typesDir = (config: NextConfig) =>
+      new Set(
+        loaderOptions(withImagetools(config, { extensions: ['jpg'], types: true })).map(
+          o => o.typesDir,
+        ),
+      );
+    expect(typesDir({})).toEqual(new Set(['.next/types/turbopack-imagetools']));
+    expect(typesDir({ distDir: 'build' })).toEqual(new Set(['build/types/turbopack-imagetools']));
+  });
+
+  it('add a post-compile hook that runs after the one the config had, keeping other compiler options', async () => {
+    const calls: string[] = [];
+    const dir = project({});
+    const config = withImagetools(
+      {
+        compiler: {
+          removeConsole: true,
+          runAfterProductionCompile: async () => {
+            calls.push('user');
+          },
+        },
+      },
+      { types: true },
+    );
+    expect(config.compiler).toMatchObject({ removeConsole: true });
+    await hookOf(config)!({ projectDir: dir, distDir: path.join(dir, '.next') });
+    expect(calls).toEqual(['user']);
+  });
+
+  it('are all written by the hook, which a warm build relies on; outdated ones are removed', async () => {
+    const dir = project({
+      'app/page.tsx': `import urls from '../images/a.jpg?w=1;2&format=webp';
+export default urls;`,
+      // as next build leaves it: emptied out, or holding an outdated declaration
+      '.next/types/turbopack-imagetools/0123456789abcdef.d.ts': 'declare module "x" {}',
+    });
+    await hookOf(withImagetools({}, { types: true }))!({
+      projectDir: dir,
+      distDir: path.join(dir, '.next'),
+    });
+    const typesDir = path.join(dir, '.next/types/turbopack-imagetools');
+    const files = readdirSync(typesDir);
+    expect(files).toHaveLength(1);
+    expect(files[0]).not.toBe('0123456789abcdef.d.ts');
+    expect(readFileSync(path.join(typesDir, files[0]!), 'utf8')).toContain(
+      'type Value = string[];',
+    );
+  });
+
+  it('warn for a Pages Router app, whose build type-checks before any image is processed', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const pagesOnly = project({ 'pages/index.tsx': '' });
+    const both = project({ 'src/app/page.tsx': '', 'src/pages/old.tsx': '' });
+    const cwd = vi.spyOn(process, 'cwd');
+
+    cwd.mockReturnValue(both);
+    withImagetools({}, { types: true });
+    cwd.mockReturnValue(pagesOnly);
+    withImagetools({});
+    expect(warn).not.toHaveBeenCalled();
+
+    withImagetools({}, { types: true });
+    expect(warn).toHaveBeenCalledOnce();
+    expect(warn.mock.calls[0]![0]).toMatch(/needs the App Router/);
   });
 });
