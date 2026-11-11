@@ -332,10 +332,11 @@ function expectedImages(html: string): Expected[] {
   expect(data.excluded, 'an excluded import keeps Next.js handling').toMatchObject({
     width: 64,
     height: 48,
-    src: expect.stringMatching(/\/photo\.[\w-]+\.jpg$/),
+    src: expect.stringMatching(/\/photo\.[\w~-]+\.jpg$/),
   });
   // spaces and non-ASCII are percent-encoded, so a URL is one srcset token
-  expect(data.accented, 'non-ASCII file name').toMatch(/\/caf%C3%A9\.jpg\.[\w-]+\.webp$/);
+  // (hashes are [\w-] in current Next.js; 16.2 also used ~)
+  expect(data.accented, 'non-ASCII file name').toMatch(/\/caf%C3%A9\.jpg\.[\w~-]+\.webp$/);
   expect(parseSrcset(data.spacedSrcset).map(s => s.width)).toEqual([40, 80]);
   expect(data.spacedSrcset).toMatch(/\/my%20photo%20\(1\)\.jpg\./);
   expect(data.heroInline, 'inline gives a data URL').toMatch(/^data:image\/webp;base64,/);
@@ -358,8 +359,8 @@ function expectedImages(html: string): Expected[] {
     { w: 200 },
   ]);
   // a same-format output keeps the source's name; a converted one adds the new extension
-  expect(data.heroPicture.img.src, 'jpg from a jpg source').toMatch(/\/hero\.[\w-]+\.jpg$/);
-  expect(data.heroUrl, 'webp from a jpg source').toMatch(/\/hero\.jpg\.[\w-]+\.webp$/);
+  expect(data.heroPicture.img.src, 'jpg from a jpg source').toMatch(/\/hero\.[\w~-]+\.jpg$/);
+  expect(data.heroUrl, 'webp from a jpg source').toMatch(/\/hero\.jpg\.[\w~-]+\.webp$/);
   expect(data.named, 'named exports match the default export').toEqual({
     src: data.heroMeta.src,
     width: data.heroMeta.width,
