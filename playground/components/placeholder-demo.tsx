@@ -1,8 +1,8 @@
 import Image from 'next/image';
 
-import hero from '../images/landscape.jpg?w=640;1280&format=webp&as=next';
-import cropped from '../images/portrait.jpg?w=240&h=240&fit=cover&format=webp&placeholder&as=img';
-import color from '../images/portrait.jpg?w=240&h=240&fit=cover&format=webp&placeholder=color&as=img';
+import hero from '@/images/landscape.jpg?w=640;1280&format=webp&as=next';
+import cropped from '@/images/portrait.jpg?w=240&h=240&fit=cover&format=webp&placeholder&as=img';
+import color from '@/images/portrait.jpg?w=240&h=240&fit=cover&format=webp&placeholder=color&as=img';
 
 // Placeholders are tiny, so they are shown scaled up with `pixelated` to see what they are.
 const pixelated = { imageRendering: 'pixelated' } as const;
@@ -10,7 +10,7 @@ const pixelated = { imageRendering: 'pixelated' } as const;
 export function PlaceholderDemo() {
   return (
     <>
-      <pre>{`import hero from './landscape.jpg?w=640;1280&format=webp&as=next';
+      <pre>{`import hero from '@/images/landscape.jpg?w=640;1280&format=webp&as=next';
 
 <Image src={hero} placeholder="blur" sizes="928px" alt="" />`}</pre>
       <p>
@@ -40,8 +40,8 @@ export function PlaceholderDemo() {
       </div>
 
       <h3>On any object output, from the cropped image</h3>
-      <pre>{`import cropped from './portrait.jpg?w=240&h=240&fit=cover&format=webp&placeholder&as=img';
-import color from './portrait.jpg?w=240&h=240&fit=cover&format=webp&placeholder=color&as=img';`}</pre>
+      <pre>{`import cropped from '@/images/portrait.jpg?w=240&h=240&fit=cover&format=webp&placeholder&as=img';
+import color from '@/images/portrait.jpg?w=240&h=240&fit=cover&format=webp&placeholder=color&as=img';`}</pre>
       <div className="row">
         <figure>
           <img

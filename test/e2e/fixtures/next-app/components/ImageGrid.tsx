@@ -1,5 +1,10 @@
 import Image from 'next/image';
 
+// through the @/ alias (tsconfig paths), as create-next-app sets it up: the loader sees the resolved
+// file, so include/exclude still match against its path
+import aliased from '@/images/hero.jpg?w=60&format=webp&imagetools';
+import aliasedExcluded from '@/images/raw/photo.jpg?w=10&format=webp&imagetools';
+
 // file names that need URL encoding: a space would split a srcset entry in two
 import accented from '../images/café.jpg?w=40&format=webp&imagetools';
 import heroUrl from '../images/hero.jpg?w=400&format=webp&imagetools';
@@ -79,6 +84,9 @@ export default function ImageGrid({ mode }: { mode: string }) {
       <img id="accented" src={accented} alt="" />
       <img id="spaced" srcSet={spacedSrcset} sizes="40px" alt="" />
 
+      <h2>through the @/ alias</h2>
+      <img id="aliased" src={aliased} alt="" />
+
       <h2>client-only (rendered after a click)</h2>
       <Hidden />
 
@@ -94,6 +102,8 @@ export default function ImageGrid({ mode }: { mode: string }) {
             heroInline,
             heroDims,
             accented,
+            aliased,
+            aliasedExcluded,
             spacedSrcset,
             excluded,
             named: { src: namedSrc, width: namedWidth },
