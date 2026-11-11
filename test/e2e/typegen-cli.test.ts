@@ -13,7 +13,7 @@ const TYPES = path.join(APP, '.next/types/turbopack-imagetools');
 const run = (...args: string[]) =>
   spawnSync(process.execPath, [CLI, ...args], { cwd: APP, encoding: 'utf8' });
 
-describe.sequential('turbopack-imagetools typegen', () => {
+describe('turbopack-imagetools typegen', { concurrent: false }, () => {
   it('writes a declaration per image query in the app, and the app type-checks with them', () => {
     clean({ next: true });
     // the order `pnpm typecheck` uses: Next.js' route types first, then ours, then tsc

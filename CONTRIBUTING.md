@@ -12,8 +12,8 @@ This guide covers the **contribution process**. For the **technical deep-dive** 
 
 ## Prerequisites
 
-- **Node.js 24 LTS or newer** (see [`.node-version`](./.node-version)).
-- **pnpm 11** — pinned via `packageManager` in the root `package.json`, so [Corepack](https://nodejs.org/api/corepack.html) uses it automatically.
+- **Node.js 26 LTS** (see [`.node-version`](./.node-version)). The package itself supports Node.js 22.12 or newer, which CI checks; developing it needs a current release.
+- **pnpm 12** — install it with `npm install -g pnpm@12` or [another method](https://pnpm.io/installation) (Node.js no longer bundles Corepack). The exact version is pinned via `packageManager` in the root `package.json`, and pnpm switches to it on its own.
 
 ## Getting started
 

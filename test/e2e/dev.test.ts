@@ -19,7 +19,7 @@ import {
 const PORT = 3202;
 
 // Each step builds on the cache state the previous one left behind.
-describe.sequential('next dev (Turbopack)', () => {
+describe('next dev (Turbopack)', { concurrent: false }, () => {
   let server: Awaited<ReturnType<typeof startServer>> | undefined;
   logServerOnFailure(() => server);
   const originalConfig = readFileSync(CONFIG_FILE, 'utf8');

@@ -26,7 +26,7 @@ ${server.log().slice(-20_000)}
 }
 
 // Each step builds on the cache state the previous one left behind.
-describe.sequential('next build (Turbopack)', () => {
+describe('next build (Turbopack)', { concurrent: false }, () => {
   beforeAll(() => writeHero(BLUE));
   afterAll(() => writeHero(BLUE));
 

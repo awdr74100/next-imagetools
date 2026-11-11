@@ -30,7 +30,7 @@ const generatedUrls = (html: string): string[] => {
   ] as string[];
 };
 
-describe.sequential('deployment shapes', () => {
+describe('deployment shapes', { concurrent: false }, () => {
   let server: Awaited<ReturnType<typeof startServer>> | undefined;
   logServerOnFailure(() => server);
   beforeAll(() => writeHero(BLUE));
