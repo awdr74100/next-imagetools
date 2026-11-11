@@ -46,8 +46,10 @@ jobs:
   # Turbopack's file watching, persistent caches and the loaders' cache writes all go through the
   # filesystem, which is exactly what differs across platforms: concurrent renames into the cache
   # failed with EPERM only on Windows, and macOS's filesystem is case-insensitive by default. So
-  # every suite runs on all three.
+  # every suite runs on all three. Each bundler is a job of its own (NIT_BUNDLER), so supporting
+  # both doesn't double the wait, and the job name says which one broke.
   test:
+    name: test (${{ matrix.os }}, ${{ matrix.bundler }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -55,6 +57,9 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+        bundler: [turbopack, webpack]
+    env:
+      NIT_BUNDLER: ${{ matrix.bundler }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -82,8 +87,15 @@ jobs:
   # above covers platforms, and 16.2's standalone output links directories as file symlinks,
   # which Windows can't follow.
   test-min:
+    name: test-min (${{ matrix.bundler }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        bundler: [turbopack, webpack]
+    env:
+      NIT_BUNDLER: ${{ matrix.bundler }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

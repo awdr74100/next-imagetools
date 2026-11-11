@@ -21,9 +21,21 @@ const HERO_COPIES = ['my photo (1).jpg', 'café.jpg'].map(name => path.join(ROOT
 export const ACCENTED = HERO_COPIES[1]!;
 const env = { ...process.env, NEXT_TELEMETRY_DISABLED: '1' };
 
-/** Every suite runs once per bundler: Turbopack, Next.js' default, and webpack (`--webpack`). */
-export const BUNDLERS = ['turbopack', 'webpack'] as const;
-export type Bundler = (typeof BUNDLERS)[number];
+const ALL_BUNDLERS = ['turbopack', 'webpack'] as const;
+export type Bundler = (typeof ALL_BUNDLERS)[number];
+
+/**
+ * Every suite runs once per bundler: Turbopack, Next.js' default, and webpack (`--webpack`).
+ * `NIT_BUNDLER` narrows that to one, so CI can run the bundlers as parallel jobs.
+ */
+export const BUNDLERS: readonly Bundler[] = (() => {
+  const only = process.env.NIT_BUNDLER;
+  if (!only) return ALL_BUNDLERS;
+  if (!(ALL_BUNDLERS as readonly string[]).includes(only)) {
+    throw new Error(`NIT_BUNDLER must be one of ${ALL_BUNDLERS.join(', ')}, got "${only}"`);
+  }
+  return [only as Bundler];
+})();
 const bundlerFlags = (bundler: Bundler) => (bundler === 'webpack' ? ['--webpack'] : []);
 
 // Fail loudly rather than test a stale or missing build.
