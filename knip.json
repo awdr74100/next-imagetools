@@ -3,7 +3,6 @@
   "ignoreExportsUsedInFile": true,
   "workspaces": {
     ".": {},
-    "packages/turbopack-imagetools": {},
     "test/e2e/fixtures/next-app": {
       "entry": ["types.check.ts", "imagetools.config.mjs"]
     },

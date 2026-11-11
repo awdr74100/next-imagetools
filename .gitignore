@@ -4,5 +4,3 @@ next-env.d.ts
 *.tsbuildinfo
 out
 dist
-packages/turbopack-imagetools/README.md
-packages/turbopack-imagetools/LICENSE

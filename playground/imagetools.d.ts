@@ -1,1 +1,1 @@
-/// <reference types="turbopack-imagetools/client" />
+/// <reference types="next-imagetools/client" />

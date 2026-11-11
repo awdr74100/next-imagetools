@@ -1,5 +1,5 @@
 name: '🐛 Bug report'
-description: Report a problem with turbopack-imagetools
+description: Report a problem with next-imagetools
 labels: ['bug']
 body:
   - type: markdown
@@ -7,7 +7,7 @@ body:
       value: |
         Thanks for taking the time to fill out this bug report!
 
-        Before submitting, please check the [README](https://github.com/awdr74100/turbopack-imagetools#readme) and [existing issues](https://github.com/awdr74100/turbopack-imagetools/issues?q=is%3Aissue) to avoid duplicates.
+        Before submitting, please check the [README](https://github.com/awdr74100/next-imagetools#readme) and [existing issues](https://github.com/awdr74100/next-imagetools/issues?q=is%3Aissue) to avoid duplicates.
   - type: textarea
     id: bug-description
     attributes:
@@ -54,7 +54,7 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: Output of `npx envinfo --system --binaries --npmPackages next,turbopack-imagetools,sharp,imagetools-core`, plus your package manager.
+      description: Output of `npx envinfo --system --binaries --npmPackages next,next-imagetools,sharp,imagetools-core`, plus your package manager.
       render: shell
     validations:
       required: true
@@ -70,9 +70,9 @@ body:
       label: Validations
       description: Before submitting the issue, please make sure you do the following
       options:
-        - label: Check that there isn't [already an issue](https://github.com/awdr74100/turbopack-imagetools/issues?q=is%3Aissue) that reports the same bug to avoid creating a duplicate.
+        - label: Check that there isn't [already an issue](https://github.com/awdr74100/next-imagetools/issues?q=is%3Aissue) that reports the same bug to avoid creating a duplicate.
           required: true
-        - label: Check that the bug still reproduces on the latest version of `turbopack-imagetools`.
+        - label: Check that the bug still reproduces on the latest version of `next-imagetools`.
           required: true
-        - label: Note whether it still happens after deleting `.next` and `node_modules/.cache/turbopack-imagetools` (either answer helps — say which in the description).
+        - label: Note whether it still happens after deleting `.next` and `node_modules/.cache/next-imagetools` (either answer helps — say which in the description).
           required: true

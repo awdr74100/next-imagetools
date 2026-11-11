@@ -1,5 +1,5 @@
 {
-  "name": "@turbopack-imagetools/fixture-next-app",
+  "name": "@next-imagetools/fixture-next-app",
   "private": true,
   "scripts": {
     "build": "next build",
@@ -8,13 +8,13 @@
     "typecheck": "next typegen && tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "next": "^16.4.5",
-    "react": "^19.3.1",
-    "react-dom": "^19.3.1",
-    "turbopack-imagetools": "workspace:*"
+    "next": "catalog:",
+    "next-imagetools": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:"
   },
   "devDependencies": {
-    "@types/react": "^19.3.0",
-    "typescript": "^6.0.3"
+    "@types/react": "catalog:",
+    "typescript": "catalog:"
   }
 }

@@ -1,14 +1,21 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    // vitest resolves like a bundler, so relative imports need no `.js`
+    // tsdown and vitest both resolve like a bundler, so relative imports need no `.js`
     "module": "preserve",
     "moduleResolution": "bundler",
     "noEmit": true,
     "lib": ["ES2023", "DOM"],
     "types": ["node"]
   },
-  "include": ["test/**/*.ts", "vitest.config.mts", "scripts/**/*.mjs"],
+  "include": [
+    "src/**/*.ts",
+    "client.d.ts",
+    "tsdown.config.ts",
+    "test/**/*.ts",
+    "vitest.config.mts",
+    "scripts/**/*.mjs"
+  ],
   // the fixture app is a Next.js project with its own tsconfig
   "exclude": ["test/e2e/fixtures"]
 }

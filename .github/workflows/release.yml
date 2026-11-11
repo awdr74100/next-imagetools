@@ -1,7 +1,7 @@
 name: Release
 
 # Triggered by the tag that `pnpm release` (scripts/release.mjs → changelogen) creates and you
-# push. Builds, gates, publishes turbopack-imagetools to npm with provenance via OIDC trusted
+# push. Builds, gates, publishes next-imagetools to npm with provenance via OIDC trusted
 # publishing, and creates the GitHub Release from the changelog.
 on:
   push:
@@ -45,10 +45,10 @@ jobs:
 
       # `pnpm pack` produces the exact tarball users install; `npm publish` does OIDC trusted
       # publishing (no token) + provenance.
-      - run: pnpm -C packages/turbopack-imagetools pack
-      - run: npm publish packages/turbopack-imagetools/turbopack-imagetools-*.tgz --provenance --access public
+      - run: pnpm pack
+      - run: npm publish next-imagetools-*.tgz --provenance --access public
 
       # Create the GitHub Release from the changelog (after npm succeeds).
-      - run: pnpm -C packages/turbopack-imagetools exec changelogen gh release
+      - run: pnpm exec changelogen gh release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

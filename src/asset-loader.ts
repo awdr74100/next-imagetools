@@ -1,4 +1,4 @@
-// Returns the encoded bytes for one `?tpit=<hash>&<config>` import; the rule that uses this
+// Returns the encoded bytes for one `?nit=<hash>&<config>` import; the rule that uses this
 // loader sets `type: 'asset'` so Turbopack emits it and exports a URL.
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';

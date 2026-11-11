@@ -1,6 +1,6 @@
 // Ambient types for imagetools imports. Reference them from a .d.ts in your app:
 //
-//   /// <reference types="turbopack-imagetools/client" />
+//   /// <reference types="next-imagetools/client" />
 //
 // TypeScript allows a single `*` per module pattern, so an import is typed by how its query ends.
 // End the query on a marker to pick the shape; the markers are stripped before processing, so a

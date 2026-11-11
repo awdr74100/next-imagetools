@@ -1,7 +1,7 @@
-# turbopack-imagetools
+# next-imagetools
 
-[![CI](https://github.com/awdr74100/turbopack-imagetools/actions/workflows/ci.yml/badge.svg)](https://github.com/awdr74100/turbopack-imagetools/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/awdr74100/turbopack-imagetools/blob/main/LICENSE)
+[![CI](https://github.com/awdr74100/next-imagetools/actions/workflows/ci.yml/badge.svg)](https://github.com/awdr74100/next-imagetools/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/awdr74100/next-imagetools/blob/main/LICENSE)
 
 Build-time image transforms for Next.js with Turbopack. Describe the variants you want in the import, and get static, optimized files — no image server, no runtime cost, and it works with `output: 'export'`.
 
@@ -41,7 +41,7 @@ Powered by [imagetools-core](https://github.com/JonasKruckenberg/imagetools), th
 
 Pre-generating images by crawling the rendered pages has its own blind spot: an image that only appears after a click, inside a client-only component, or behind a login is never rendered at build time, so it 404s in production. [nuxt/image#2379](https://github.com/nuxt/image/issues/2379) documents exactly this failure.
 
-turbopack-imagetools generates images from **imports** instead. If your code imports an image, every variant it asks for is built — however and whenever it ends up rendered.
+next-imagetools generates images from **imports** instead. If your code imports an image, every variant it asks for is built — however and whenever it ends up rendered.
 
 - **Explicit.** The transforms live in the import that uses them, not in a config file somewhere else.
 - **Static.** Output is plain files under `/_next/static/media`, cached by your CDN like any other asset.
@@ -51,18 +51,18 @@ turbopack-imagetools generates images from **imports** instead. If your code imp
 ## Installation
 
 ```bash
-pnpm add turbopack-imagetools
-# or: npm install turbopack-imagetools / yarn add turbopack-imagetools
+pnpm add next-imagetools
+# or: npm install next-imagetools / yarn add next-imagetools
 ```
 
-**Requirements:** Next.js 16.2 or newer with Turbopack (the default bundler), and Node.js 22.12 or newer.
+**Requirements:** Next.js 16.2 or newer with Turbopack (the default bundler), and Node.js 22.12 or newer. Support for webpack (`next build --webpack`) is planned for the next release ([#23](https://github.com/awdr74100/next-imagetools/issues/23)).
 
 Wrap your Next.js config with `withImagetools`:
 
 ```ts
 // next.config.ts
 import type { NextConfig } from 'next';
-import { withImagetools } from 'turbopack-imagetools';
+import { withImagetools } from 'next-imagetools';
 
 const nextConfig: NextConfig = {
   // your existing config
@@ -91,22 +91,25 @@ The most common ones:
 
 - `w` / `h` — width / height in pixels
 - `format` — `avif`, `webp`, `jpg`, `png`, `gif`, `tiff` or `heif`
-- `quality` — `1`–`100`
+- `quality` — `1`–`100`; see [Quality](#quality) for the defaults
 - `fit` — `cover`, `contain`, `fill`, `inside` or `outside` (when both `w` and `h` are set)
 - `position` — where to crop from with `fit=cover`, e.g. `top` or `attention`
 - `blur`, `rotate`, `flip`, `flop`, `grayscale`, `tint`, `normalize`, `lossless`, `progressive`, …
 
-See the [imagetools directive reference](https://github.com/JonasKruckenberg/imagetools/blob/main/docs/directives.md) for every directive and its values. (It still lists `withoutEnlargement` and `withoutReduction`, which imagetools-core no longer reads — a fix is proposed in [imagetools#965](https://github.com/JonasKruckenberg/imagetools/pull/965). Sizes are never enlarged unless you add `allowUpscale`.)
+See the [imagetools directive reference](https://github.com/JonasKruckenberg/imagetools/blob/main/docs/directives.md) for every directive. It still lists `withoutEnlargement` and `withoutReduction`, which no longer have an effect ([imagetools#965](https://github.com/JonasKruckenberg/imagetools/pull/965)); use `allowUpscale` instead.
 
 Mistakes are reported instead of silently producing the wrong image. Each message names the import it is about:
 
 - an **unknown directive** logs a warning with the closest match — `widht=300` → _Did you mean w?_
 - an **invalid value** fails the build — `w=abc`, `quality=0`, or a `format` without output support such as `jxl`
 - an **unknown output format** fails the build — `as=piture` → _Did you mean as=picture?_
+- a **wrong type marker** fails the build — see [TypeScript](#typescript)
 
 A stray separator is ignored: `format=webp;` means `format=webp`, not a second image without a format.
 
-Widths and heights larger than the source are reduced to the source size, so a 1600px photo never comes out at 3000px; add `allowUpscale=true` to scale up anyway. The source size is the one you see: a phone photo stored sideways with an EXIF rotation counts as upright, as imagetools turns it. When reducing makes two variants identical — `w=1600;3000` on a 1600px photo — both are kept (they share one file) and the build logs a warning, so the [shape of the import](#multiple-variants) doesn't change with the source.
+Sizes larger than the source are reduced to it: a 1600px photo never comes out at 3000px. Add `allowUpscale=true` to scale up. Photos with an EXIF rotation, such as phone portraits, are measured upright.
+
+If reducing makes two variants identical — `w=1600;3000` on a 1600px photo — both are kept and share one file, and the build warns. The [shape of the import](#multiple-variants) never depends on the source.
 
 Add `inline` to embed the image in your JavaScript as a `data:` URL instead of emitting a file — worth it for tiny images such as blurred placeholders, where a separate request costs more than the bytes:
 
@@ -116,6 +119,22 @@ import placeholder from './photo.jpg?w=24&blur=2&format=webp&inline';
 ```
 
 Animated GIF and WebP sources keep their animation when the output is `gif` or `webp`; every frame is resized and cropped alike. Other formats can't hold frames, so they keep the first one, and the build warns. (A multi-page TIFF isn't an animation: it gives its first page.)
+
+### Quality
+
+Every generated image is encoded again, also when `format` isn't set: `?w=800` on a JPEG gives a new JPEG. Without `quality`, each format uses [sharp's default](https://sharp.pixelplumbing.com/api-output):
+
+- **JPEG, WebP, TIFF:** 80
+- **AVIF, HEIF:** 50, on a different scale — it looks about like JPEG at 80
+- **PNG:** lossless
+
+These are the same as in vite-imagetools, which uses the same engine. (They differ from `next/image`, which uses 75.) To set one quality for every import, use [`defaultDirectives`](#presets-and-defaults):
+
+```ts
+export default withImagetools(nextConfig, { defaultDirectives: 'quality=75' });
+```
+
+An import's own `quality` still wins.
 
 ### Multiple variants
 
@@ -130,7 +149,7 @@ The number of images is always the product of the value counts in the query, so 
 
 ### Output formats
 
-`as` chooses what the import gives you back.
+`as` chooses what the import gives you back. The examples leave out the [TypeScript markers](#typescript).
 
 **Default — URL.** One image gives a URL string; several give an array of URLs.
 
@@ -181,7 +200,7 @@ import photo from './photo.jpg?w=640;1280&format=webp&as=next';
 **Named imports.** When the result is a single object (`as=metadata`, `as=img`, `as=picture`, `as=next`), its keys are also exported by name:
 
 ```ts
-import { src, width, height } from './photo.jpg?w=800&format=webp&as=metadata';
+import { src, width, height } from './photo.jpg?w=800&format=webp&as=metadata&imagetools';
 import { sources, img } from './photo.jpg?w=400;800&format=avif;webp&as=picture';
 ```
 
@@ -191,7 +210,7 @@ Reference the client types from any `.d.ts` file in your app:
 
 ```ts
 // imagetools.d.ts
-/// <reference types="turbopack-imagetools/client" />
+/// <reference types="next-imagetools/client" />
 ```
 
 TypeScript recognizes an import by how its query ends. Queries ending in `as=srcset`, `as=img`, `as=picture` or `as=next` are typed as they are. The URL and metadata outputs give a single value or an array, depending on how many images the query makes, so end those with a **marker**:
@@ -209,9 +228,20 @@ import srcset from './photo.jpg?w=400;800&format=webp&as=srcset'; // string, no 
 
 **The build checks every marker.** One that doesn't match what the import gives — `&imagetools` on a query that makes two images — fails the build and says which marker to use, so a type can't be silently wrong.
 
-Markers only pick the type and are removed before processing, so a marked and an unmarked import of the same image share their output files. They are the markers commonly used with vite-imagetools.
+Markers only select the type: a marked and an unmarked import of the same image share their output files. They are the markers commonly used with vite-imagetools.
 
-`as=metadata:<keys>` (only some keys) has no marker type, since the keys vary: declare its type yourself, as for a [custom output format](#custom-transforms-and-output-formats).
+Two cases need a declaration of your own, as for a [custom output format](#custom-transforms-and-output-formats):
+
+- `as=metadata:<keys>`, whose keys vary.
+- A preset that sets `as`, since the query only shows the preset's name:
+
+```ts
+// imagetools.d.ts
+declare module '*preset=hero' {
+  const hero: ImagetoolsPicture;
+  export default hero;
+}
+```
 
 ## Recipes
 
@@ -309,7 +339,7 @@ Pass options as the second argument:
 
 ```ts
 export default withImagetools(nextConfig, {
-  cache: { dir: 'node_modules/.cache/turbopack-imagetools', retention: 60 * 60 * 24 * 30 },
+  cache: { dir: 'node_modules/.cache/next-imagetools', retention: 60 * 60 * 24 * 30 },
   removeMetadata: true,
   namedExports: true,
   extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'gif', 'tiff', 'heif'],
@@ -317,11 +347,11 @@ export default withImagetools(nextConfig, {
 ```
 
 - **`cache`** — the on-disk cache of processed images:
-  - `dir` — where, relative to your Next.js app. Default: `node_modules/.cache/turbopack-imagetools`. Persist it in CI to speed up builds.
+  - `dir` — where, relative to your Next.js app. Default: `node_modules/.cache/next-imagetools`. Persist it in CI to speed up builds.
   - `retention` — remove entries that haven't been used for this many seconds. Default: keep everything.
   - `enabled` — set to `false` to process every image on every build. Default: `true`.
 - **`removeMetadata`** — strip EXIF, ICC, XMP and other private metadata from generated images. Default: `true`.
-- **`namedExports`** — also export the keys of object results by name, as in `import { width } from './a.jpg?as=metadata'`. Default: `true`.
+- **`namedExports`** — also export the keys of object results by name, as in `import { width } from './a.jpg?as=metadata&imagetools'`. Default: `true`.
 - **`extensions`** — source file extensions handled when imported with a query. Default: `jpg`, `jpeg`, `png`, `webp`, `avif`, `gif`, `tiff`, `heif`.
 - **`include`** — globs; only imports whose path matches one of them are handled. Default: all.
 - **`exclude`** — globs; imports whose path matches one of them are never handled.
@@ -340,7 +370,7 @@ export default withImagetools(nextConfig, {
     hero: 'w=640;1280;1920&format=avif;webp&as=picture',
     thumb: { w: '160', h: '160', fit: 'cover', format: 'webp' },
   },
-  defaultDirectives: 'quality=80',
+  defaultDirectives: 'quality=75',
 });
 ```
 
@@ -367,7 +397,7 @@ export default withImagetools(nextConfig, { configFile: './imagetools.config.mjs
 
 ```js
 // imagetools.config.mjs
-import { defineConfig } from 'turbopack-imagetools/config';
+import { defineConfig } from 'next-imagetools/config';
 
 export default defineConfig({
   // add an output format: import sizes from './a.jpg?w=400;800&as=sizes'
@@ -401,7 +431,7 @@ export default defineConfig({
 - **`resolveConfigs`** — replaces how directives expand into the list of images to generate.
 - **`defaultDirectives`** — directives computed per image; `metadata()` reads the source's [sharp metadata](https://sharp.pixelplumbing.com/api-input#metadata). They sit between the `defaultDirectives` option and the preset.
 
-Editing the config file takes effect immediately, also in a running `next dev`: it is tracked as a dependency of every import that uses it, and its content is part of every cache key. Only the config file itself is tracked, though: if it imports other local modules, an edit to one of those isn't seen — keep the code in the config file, or after such an edit, restart `next dev` and delete `node_modules/.cache/turbopack-imagetools`. The imagetools-core API it builds on is re-exported from `turbopack-imagetools/core`. A `.ts` config file needs a Node.js version that runs TypeScript natively (22.18 or newer); otherwise use `.mjs` or `.js`.
+Editing the config file takes effect immediately, also in a running `next dev`: it is tracked as a dependency of every import that uses it, and its content is part of every cache key. Only the config file itself is tracked, though: if it imports other local modules, an edit to one of those isn't seen — keep the code in the config file, or after such an edit, restart `next dev` and delete `node_modules/.cache/next-imagetools`. The imagetools-core API it builds on is re-exported from `next-imagetools/core`. A `.ts` config file needs a Node.js version that runs TypeScript natively (22.18 or newer); otherwise use `.mjs` or `.js`.
 
 Types for a custom output format are up to you, as with any `as=` value TypeScript can't know about:
 
@@ -435,7 +465,7 @@ Generated files are named after their source: `hero.<hash>.jpg` when the format 
 
 ## Troubleshooting
 
-**An image looks outdated, or a change doesn't show up.** Delete `.next` and `node_modules/.cache/turbopack-imagetools` and rebuild. If that fixes it, please [open an issue](https://github.com/awdr74100/turbopack-imagetools/issues/new/choose) — caches are supposed to invalidate on their own.
+**An image looks outdated, or a change doesn't show up.** Delete `.next` and `node_modules/.cache/next-imagetools` and rebuild. If that fixes it, please [open an issue](https://github.com/awdr74100/next-imagetools/issues/new/choose) — caches are supposed to invalidate on their own.
 
 **`Cannot find module './photo.jpg?…'` in TypeScript.** Reference the client types, and end the query in a marker or an `as=` that types on its own. See [TypeScript](#typescript).
 
@@ -449,12 +479,12 @@ Measured on 12 variants of a 24-megapixel JPEG in one worker: peak memory went f
 
 ## Contributing
 
-Bug reports and pull requests are welcome. See [CONTRIBUTING.md](https://github.com/awdr74100/turbopack-imagetools/blob/main/CONTRIBUTING.md) for the development setup and the test suites, and the [Code of Conduct](https://github.com/awdr74100/turbopack-imagetools/blob/main/CODE_OF_CONDUCT.md).
+Bug reports and pull requests are welcome. See [CONTRIBUTING.md](https://github.com/awdr74100/next-imagetools/blob/main/CONTRIBUTING.md) for the development setup and the test suites, and the [Code of Conduct](https://github.com/awdr74100/next-imagetools/blob/main/CODE_OF_CONDUCT.md).
 
 ## Acknowledgements
 
-The directive syntax, transforms and output formats come from [imagetools](https://github.com/JonasKruckenberg/imagetools) by Jonas Kruckenberg. This package bridges them to Turbopack.
+The directive syntax, transforms and output formats come from [imagetools](https://github.com/JonasKruckenberg/imagetools) by Jonas Kruckenberg. This package bridges them to Next.js.
 
 ## License
 
-[MIT](https://github.com/awdr74100/turbopack-imagetools/blob/main/LICENSE) © Roya
+[MIT](https://github.com/awdr74100/next-imagetools/blob/main/LICENSE) © Roya

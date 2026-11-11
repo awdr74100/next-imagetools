@@ -27,7 +27,7 @@ export type Directives = string | Record<string, string>;
 export type CacheOptions = {
   /** Cache processed images on disk between builds (default: true). */
   enabled?: boolean;
-  /** Relative to the Next.js app (default: `node_modules/.cache/turbopack-imagetools`). */
+  /** Relative to the Next.js app (default: `node_modules/.cache/next-imagetools`). */
   dir?: string;
   /** Remove entries that haven't been used for this many seconds (default: keep everything). */
   retention?: number;
@@ -51,7 +51,7 @@ export interface LoaderOptions {
   exclude?: string[];
   /**
    * A module (relative to the Next.js app) whose default export holds the options that take
-   * functions; see `ImagetoolsConfig` in `turbopack-imagetools/config`.
+   * functions; see `ImagetoolsConfig` in `next-imagetools/config`.
    */
   configFile?: string;
 }
@@ -70,8 +70,8 @@ export interface LoaderContext {
 }
 
 /** Marks the internal per-image import that returns the encoded bytes. */
-export const MARKER = 'tpit';
-export const DEFAULT_CACHE_DIR = 'node_modules/.cache/turbopack-imagetools';
+export const MARKER = 'nit';
+export const DEFAULT_CACHE_DIR = 'node_modules/.cache/next-imagetools';
 
 export function hash(parts: (string | Buffer)[]): string {
   const h = createHash('sha1');
@@ -257,7 +257,7 @@ export async function loadConfig(
   const file = path.resolve(ctx.rootContext ?? process.cwd(), options.configFile);
   ctx.addDependency?.(file);
   const content = await readFile(file).catch(() => {
-    throw new Error(`turbopack-imagetools: configFile not found at ${file}`);
+    throw new Error(`next-imagetools: configFile not found at ${file}`);
   });
   const contentHash = hash([content]);
   let loaded = loadedConfigs.get(contentHash);
@@ -286,7 +286,7 @@ export async function withContext<T>(ctx: LoaderContext, task: () => Promise<T>)
     return await task();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`turbopack-imagetools: ${where(ctx)}: ${message}`, { cause: error });
+    throw new Error(`next-imagetools: ${where(ctx)}: ${message}`, { cause: error });
   }
 }
 
@@ -302,7 +302,7 @@ function where(ctx: LoaderContext): string {
  */
 export function warn(ctx: LoaderContext, message: string): void {
   const warning = new Error(`${where(ctx)}: ${message}`);
-  warning.name = 'turbopack-imagetools';
+  warning.name = 'next-imagetools';
   warning.stack = `${warning.name}: ${warning.message}`;
   ctx.emitWarning?.(warning);
 }

@@ -21,8 +21,8 @@ function imagetoolsRules(options: LoaderOptions, sourceExt: string): RuleCollect
     // so that gives `hero.jpg.webp`; a same-format output skips the rename and stays `hero.jpg`.
     ...OUTPUT_EXTENSIONS.map(ext => {
       const rule: RuleItem = {
-        condition: { query: new RegExp(`[?&]tpit_ext=${ext}(?=&|$)`) },
-        loaders: [{ loader: 'turbopack-imagetools/asset-loader', options: { ...options } }],
+        condition: { query: new RegExp(`[?&]nit_ext=${ext}(?=&|$)`) },
+        loaders: [{ loader: 'next-imagetools/asset-loader', options: { ...options } }],
         type: 'asset',
       };
       if (ext !== sourceExt) rule.as = `*.${ext}`;
@@ -30,8 +30,8 @@ function imagetoolsRules(options: LoaderOptions, sourceExt: string): RuleCollect
     }),
     // any other import with a query goes through imagetools
     {
-      condition: { all: [{ query: /^\?.+/ }, { not: { query: /[?&]tpit=/ } }] },
-      loaders: [{ loader: 'turbopack-imagetools/loader', options: { ...options } }],
+      condition: { all: [{ query: /^\?.+/ }, { not: { query: /[?&]nit=/ } }] },
+      loaders: [{ loader: 'next-imagetools/loader', options: { ...options } }],
       as: '*.js',
     },
   ];
@@ -64,7 +64,7 @@ function warnOnMultiValueDefaults(defaults: ImagetoolsOptions['defaultDirectives
   const multi = [...new URLSearchParams(defaults)].filter(([, v]) => v.includes(';'));
   if (multi.length === 0) return;
   console.warn(
-    `[turbopack-imagetools] defaultDirectives sets several values for ${multi
+    `[next-imagetools] defaultDirectives sets several values for ${multi
       .map(([k, v]) => `${k}=${v}`)
       .join(', ')}. Every import then produces several images, so imports that would give a ` +
       `single value give an array instead, and \`&imagetools\` type markers no longer match.`,

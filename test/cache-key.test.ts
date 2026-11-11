@@ -4,8 +4,8 @@
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 
-import { version } from '../packages/turbopack-imagetools/package.json';
-import { ENGINE, cacheKey } from '../packages/turbopack-imagetools/src/shared';
+import { version } from '../package.json';
+import { ENGINE, cacheKey } from '../src/shared';
 
 const config = { w: '400', format: 'webp' };
 const base = cacheKey(config, 'source', true);

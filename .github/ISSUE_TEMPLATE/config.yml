@@ -1,10 +1,10 @@
 blank_issues_enabled: false
 contact_links:
   - name: 🔒 Report a security vulnerability
-    url: https://github.com/awdr74100/turbopack-imagetools/security/advisories/new
+    url: https://github.com/awdr74100/next-imagetools/security/advisories/new
     about: Never report security vulnerabilities in public issues — use private reporting instead. See SECURITY.md.
   - name: 💬 Questions & setup help
-    url: https://github.com/awdr74100/turbopack-imagetools#readme
+    url: https://github.com/awdr74100/next-imagetools#readme
     about: Check the README first — it covers installation, directives and TypeScript setup.
   - name: 🧰 imagetools directives
     url: https://github.com/JonasKruckenberg/imagetools/blob/main/docs/directives.md

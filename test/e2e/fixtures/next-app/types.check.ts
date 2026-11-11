@@ -1,6 +1,6 @@
 import type { StaticImageData } from 'next/image';
 
-// Type tests for turbopack-imagetools/client, run by `tsc --noEmit` (pnpm typecheck).
+// Type tests for next-imagetools/client, run by `tsc --noEmit` (pnpm typecheck).
 // Each import must infer the shape the loader really returns; the @ts-expect-error lines fail the
 // typecheck if a pattern ever starts inferring something looser.
 import url from './images/hero.jpg?w=400&format=webp&imagetools';

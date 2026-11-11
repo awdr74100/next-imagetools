@@ -4,7 +4,7 @@
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
-Instead, use [GitHub private vulnerability reporting](https://github.com/awdr74100/turbopack-imagetools/security/advisories/new): go to the [Security tab](https://github.com/awdr74100/turbopack-imagetools/security) and click **Report a vulnerability**. The report stays private between you and the maintainer until a fix is released.
+Instead, use [GitHub private vulnerability reporting](https://github.com/awdr74100/next-imagetools/security/advisories/new): go to the [Security tab](https://github.com/awdr74100/next-imagetools/security) and click **Report a vulnerability**. The report stays private between you and the maintainer until a fix is released.
 
 What to expect:
 
@@ -19,11 +19,11 @@ Only the **latest release** receives security fixes.
 
 ## Security model
 
-turbopack-imagetools runs **only at build time and in `next dev`**, inside the Next.js process on your machine or CI runner. Nothing of it ships to the browser except the image files it generates and the small modules that reference them.
+next-imagetools runs **only at build time and in `next dev`**, inside the Next.js process on your machine or CI runner. Nothing of it ships to the browser except the image files it generates and the small modules that reference them.
 
 - **Inputs.** Image files your source imports, and the directives in the import's query string. Both come from your own repository; the loader never fetches anything over the network.
 - **Decoding.** Images are decoded and encoded by [sharp](https://sharp.pixelplumbing.com/) (libvips). Treat images from untrusted sources the way you would any file handed to an image decoder.
-- **File writes.** Only inside the cache directory (`node_modules/.cache/turbopack-imagetools` by default, or the `cache.dir` you configure). Emitted images go through Turbopack's own asset pipeline into `.next` / `out`.
+- **File writes.** Only inside the cache directory (`node_modules/.cache/next-imagetools` by default, or the `cache.dir` you configure). Emitted images go through Turbopack's own asset pipeline into `.next` / `out`.
 
 ## Scope
 

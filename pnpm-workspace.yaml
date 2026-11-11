@@ -1,7 +1,15 @@
 packages:
-  - 'packages/*'
   - 'test/e2e/fixtures/*'
   - 'playground'
+
+# Versions the package's development, the e2e fixture and the playground share, so they test the
+# same Next.js. scripts/pin-min-next.mjs rewrites `next` here for CI's oldest-supported run.
+catalog:
+  next: ^16.4.5
+  react: ^19.3.1
+  react-dom: ^19.3.1
+  '@types/react': ^19.3.0
+  typescript: ^6.0.3
 
 allowBuilds:
   sharp: true

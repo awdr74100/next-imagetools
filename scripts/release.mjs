@@ -28,7 +28,6 @@ import { determineSemverChange, getGitDiff, loadChangelogConfig, parseCommits } 
 const SEMVER_RE = /^\d+\.\d+\.\d+(?:-[\w.-]+)?(?:\+[\w.-]+)?$/;
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const pkgDir = join(repoRoot, 'packages', 'turbopack-imagetools');
 
 function fail(message) {
   console.error(styleText('red', `✖ ${message}`));
@@ -139,9 +138,8 @@ async function ask(question) {
   }
 }
 
-const current = JSON.parse(readFileSync(join(pkgDir, 'package.json'), 'utf8')).version;
-if (!SEMVER_RE.test(current))
-  fail(`packages/turbopack-imagetools/package.json holds an unparseable version: ${current}`);
+const current = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8')).version;
+if (!SEMVER_RE.test(current)) fail(`package.json holds an unparseable version: ${current}`);
 
 // changelogen only stages CHANGELOG.md and package.json, so a dirty tree would
 // leave the tag pointing at a commit that misses whatever else is in flight.
@@ -150,7 +148,7 @@ if (dirty) fail(`working tree is not clean:\n${dirty}`);
 
 // The same commit set changelogen itself would changelog, so the suggestion
 // below matches the release you are about to cut.
-const config = await loadChangelogConfig(pkgDir, {});
+const config = await loadChangelogConfig(repoRoot, {});
 const commits = [];
 for (const commit of parseCommits(await getGitDiff(config.from, config.to, config.cwd), config)) {
   const type = commit.type.toLowerCase();
@@ -214,18 +212,7 @@ if (git('tag', '--list', tag)) fail(`tag ${tag} already exists`);
 
 // Same command this script replaced; --no-github because the GitHub Release is
 // created by .github/workflows/release.yml once the tag is pushed.
-const args = [
-  '-C',
-  'packages/turbopack-imagetools',
-  'exec',
-  'changelogen',
-  '--release',
-  '-r',
-  version,
-  '--no-github',
-  '--output',
-  '../../CHANGELOG.md',
-];
+const args = ['exec', 'changelogen', '--release', '-r', version, '--no-github'];
 
 console.log();
 console.log(`  ${styleText('dim', `pnpm ${args.join(' ')}`)}`);
@@ -251,7 +238,7 @@ console.log(
 console.log(
   `  Pushing ${branch} + ${tag} starts the release workflow: ${styleText(
     'bold',
-    'it publishes turbopack-imagetools to npm',
+    'it publishes next-imagetools to npm',
   )}.`,
 );
 console.log();
@@ -275,7 +262,5 @@ if (push.status !== 0) {
 
 console.log();
 console.log(`  ${styleText('green', '✔')} pushed. release.yml is building ${tag}:`);
-console.log(
-  `    ${styleText('bold', 'https://github.com/awdr74100/turbopack-imagetools/actions')}`,
-);
+console.log(`    ${styleText('bold', 'https://github.com/awdr74100/next-imagetools/actions')}`);
 console.log();

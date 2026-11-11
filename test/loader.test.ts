@@ -19,13 +19,13 @@ import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
-const dist = path.resolve(import.meta.dirname, '../packages/turbopack-imagetools/dist');
+const dist = path.resolve(import.meta.dirname, '../dist');
 type Loader = { default: (this: object) => Promise<string | Buffer>; raw?: boolean };
 const moduleLoader = require(path.join(dist, 'loader.cjs')) as Loader;
 const assetLoader = require(path.join(dist, 'asset-loader.cjs')) as Loader;
 
 // Each run gets its own source image and cache, so the unit suite never touches the e2e fixture.
-const workDir = mkdtempSync(path.join(tmpdir(), 'tpit-unit-'));
+const workDir = mkdtempSync(path.join(tmpdir(), 'nit-unit-'));
 const HERO = path.join(workDir, 'images', 'hero.jpg');
 const cacheDir = path.join(workDir, 'cache');
 beforeAll(async () => {
@@ -56,8 +56,8 @@ const runModule = (query: string, options?: object) =>
 const exported = (code: string): unknown =>
   JSON.parse(
     code
-      .match(/const __tpit_value = (.*);\n/)![1]!
-      .replaceAll(/" \+ __tpit_url\(__tpit_(\d+)\) \+ "/g, '#$1'),
+      .match(/const __nit_value = (.*);\n/)![1]!
+      .replaceAll(/" \+ __nit_url\(__nit_(\d+)\) \+ "/g, '#$1'),
   );
 
 describe('module loader', () => {
@@ -80,7 +80,7 @@ describe('module loader', () => {
 
   it('fails the build when a type marker disagrees with what the import gives', async () => {
     await expect(runModule('?w=400;800&format=webp&imagetools')).rejects.toThrow(
-      'turbopack-imagetools: hero.jpg?w=400;800&format=webp&imagetools: the query gives 2 images, ' +
+      'next-imagetools: hero.jpg?w=400;800&format=webp&imagetools: the query gives 2 images, ' +
         'an array, but &imagetools types it as a single value. End it with &imagetools-gallery.',
     );
     // the count includes what a preset adds
@@ -97,15 +97,15 @@ describe('module loader', () => {
 
   it('one asset import per resolved config, carrying the output extension', async () => {
     const code = await runModule('?w=300;600&format=avif;webp');
-    const imports = [...code.matchAll(/import __tpit_\d+ from "([^"]+)"/g)].map(m => m[1]);
+    const imports = [...code.matchAll(/import __nit_\d+ from "([^"]+)"/g)].map(m => m[1]);
     expect(imports).toHaveLength(4);
-    expect(imports.filter(i => i?.includes('tpit_ext=avif'))).toHaveLength(2);
-    expect(imports.filter(i => i?.includes('tpit_ext=webp'))).toHaveLength(2);
+    expect(imports.filter(i => i?.includes('nit_ext=avif'))).toHaveLength(2);
+    expect(imports.filter(i => i?.includes('nit_ext=webp'))).toHaveLength(2);
   });
 
   it('as=metadata:<keys> keeps only those keys', async () => {
     const code = await runModule('?w=300&format=webp&as=metadata:width;height');
-    const value = code.match(/const __tpit_value = (.*);\n/)?.[1];
+    const value = code.match(/const __nit_value = (.*);\n/)?.[1];
     expect(value).toBe('{"width":300,"height":188}');
   });
 
@@ -114,7 +114,7 @@ describe('module loader', () => {
       const code = await runModule('?w=300&format=avif;webp;jpg&as=picture');
       expect(code).toMatch(/"sources":\{"avif":"[^}]*","webp":"[^}]*"\}/);
       expect(code).not.toMatch(/"sources":\{[^}]*"jpe?g"/);
-      expect(code).toMatch(/"img":\{"src":"" \+ __tpit_url\(__tpit_2\)/);
+      expect(code).toMatch(/"img":\{"src":"" \+ __nit_url\(__nit_2\)/);
     });
 
     it('gives the fallback format a source too when it has several sizes, keyed jpeg', async () => {
@@ -214,7 +214,7 @@ describe('module loader', () => {
         include: ['**/*.jpg'],
         exclude: ['raw/**'],
       });
-      expect(code).toMatch(/tpit_ext=webp/);
+      expect(code).toMatch(/nit_ext=webp/);
     });
   });
 
@@ -224,7 +224,7 @@ describe('module loader', () => {
     it('exports the keys of a single metadata object by name', async () => {
       const code = await runModule('?w=300&format=webp&as=metadata');
       expect(names(code)).toEqual(expect.arrayContaining(['src', 'width', 'height', 'format']));
-      expect(code).toMatch(/^export const width = __tpit_value\["width"\];$/m);
+      expect(code).toMatch(/^export const width = __nit_value\["width"\];$/m);
     });
 
     it('exports sources and img for as=picture', async () => {
@@ -279,7 +279,7 @@ describe('module loader', () => {
   describe('configFile', () => {
     let dir: string;
     beforeAll(() => {
-      dir = mkdtempSync(path.join(tmpdir(), 'tpit-config-'));
+      dir = mkdtempSync(path.join(tmpdir(), 'nit-config-'));
     });
     afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -365,10 +365,7 @@ describe('module loader', () => {
       // point the package import at the build, which is what it resolves to in a user's app
       const configFile = path.join(workDir, 'readme-example.mjs');
       const configEntry = pathToFileURL(path.join(dist, 'config.mjs')).href;
-      writeFileSync(
-        configFile,
-        example!.replace("'turbopack-imagetools/config'", `'${configEntry}'`),
-      );
+      writeFileSync(configFile, example!.replace("'next-imagetools/config'", `'${configEntry}'`));
       try {
         const sizes = exported(await runModule('?w=300;400&as=sizes', { configFile }));
         expect(sizes).toEqual([
@@ -422,7 +419,7 @@ describe('module loader', () => {
       expect(warnings).toEqual([
         'hero.jpg?widht=300&format=webp: Unknown directive "widht" has no effect. Did you mean w?',
       ]);
-      expect(code).toMatch(/tpit_ext=webp/);
+      expect(code).toMatch(/nit_ext=webp/);
     });
 
     it('emits warnings without a stack trace, since Turbopack prints it under the message', async () => {
@@ -432,13 +429,13 @@ describe('module loader', () => {
         emitWarning: (e: Error) => emitted.push(e),
       });
       expect(emitted).toHaveLength(1);
-      expect(emitted[0]!.name).toBe('turbopack-imagetools');
-      expect(emitted[0]!.stack).toBe(`turbopack-imagetools: ${emitted[0]!.message}`);
+      expect(emitted[0]!.name).toBe('next-imagetools');
+      expect(emitted[0]!.stack).toBe(`next-imagetools: ${emitted[0]!.message}`);
     });
 
     it('fails on an unknown output format, naming the file and query', async () => {
       await expect(runModule('?w=300&as=piture')).rejects.toThrow(
-        'turbopack-imagetools: hero.jpg?w=300&as=piture: Unknown output format as=piture. Did you mean as=picture?',
+        'next-imagetools: hero.jpg?w=300&as=piture: Unknown output format as=piture. Did you mean as=picture?',
       );
     });
 
@@ -454,11 +451,11 @@ describe('module loader', () => {
       const broken = path.join(path.dirname(HERO), 'broken.jpg');
       writeFileSync(broken, 'not an image');
       await expect(moduleLoader.default.call(context('?w=10&format=webp', broken))).rejects.toThrow(
-        'turbopack-imagetools: broken.jpg?w=10&format=webp: Input buffer contains',
+        'next-imagetools: broken.jpg?w=10&format=webp: Input buffer contains',
       );
       await expect(
-        assetLoader.default.call(context('?tpit=x&tpit_ext=webp&w=10&format=webp', broken)),
-      ).rejects.toThrow('turbopack-imagetools: broken.jpg?tpit=x&tpit_ext=webp&w=10&format=webp:');
+        assetLoader.default.call(context('?nit=x&nit_ext=webp&w=10&format=webp', broken)),
+      ).rejects.toThrow('next-imagetools: broken.jpg?nit=x&nit_ext=webp&w=10&format=webp:');
     });
 
     it('handles file names that need escaping, and encodes the URLs it exports', async () => {
@@ -467,9 +464,9 @@ describe('module loader', () => {
       const code = (await moduleLoader.default.call(
         context('?w=40&format=webp', spaced),
       )) as string;
-      expect(code).toContain('from "./my photo (1) & café.jpg?tpit=');
+      expect(code).toContain('from "./my photo (1) & café.jpg?nit=');
       // a space would otherwise split a srcset entry; Turbopack returns the path unencoded
-      expect(code).toContain('const __tpit_url = (m) => encodeURI(');
+      expect(code).toContain('const __nit_url = (m) => encodeURI(');
     });
 
     it('ignores a stray separator instead of adding an empty variant', async () => {
@@ -485,7 +482,7 @@ describe('module loader', () => {
     });
 
     it('does not warn about keys the config file defaultDirectives reads', async () => {
-      const dir = mkdtempSync(path.join(tmpdir(), 'tpit-consumed-'));
+      const dir = mkdtempSync(path.join(tmpdir(), 'nit-consumed-'));
       try {
         const configFile = path.join(dir, 'config.mjs');
         writeFileSync(
@@ -730,7 +727,7 @@ describe('module loader', () => {
   });
 
   describe('cache options', () => {
-    const freshDir = () => mkdtempSync(path.join(tmpdir(), 'tpit-cache-'));
+    const freshDir = () => mkdtempSync(path.join(tmpdir(), 'nit-cache-'));
     const hourAgo = () => new Date(Date.now() - 3600_000);
 
     it('writes nothing when disabled', async () => {
@@ -793,7 +790,7 @@ describe('module loader', () => {
 
 describe('asset loader', () => {
   it('returns the encoded bytes for one config, also after `as` renamed the path', async () => {
-    const query = '?tpit=x&tpit_ext=webp&w=300&format=webp';
+    const query = '?nit=x&nit_ext=webp&w=300&format=webp';
     for (const resourcePath of [HERO, `${HERO}.webp`]) {
       const bytes = (await assetLoader.default.call(context(query, resourcePath))) as Buffer;
       const meta = await sharp(bytes).metadata();
