@@ -854,6 +854,19 @@ describe('module loader under webpack', () => {
     expect(salted.emitted[0]!.name).not.toBe(emitted[0]!.name);
   });
 
+  it('treats an upper-case source extension as the same format', async () => {
+    const upper = path.join(workDir, 'images', 'CAMERA.JPG');
+    writeFileSync(upper, readFileSync(HERO));
+    const run = (format: string) =>
+      runWebpack(`?w=100&format=${format}`, {}, { resourcePath: upper });
+    expect((await run('jpg')).emitted[0]!.name).toMatch(
+      /^static\/media\/CAMERA\.[0-9a-f]{16}\.jpg$/,
+    );
+    expect((await run('webp')).emitted[0]!.name).toMatch(
+      /^static\/media\/CAMERA\.JPG\.[0-9a-f]{16}\.webp$/,
+    );
+  });
+
   it('emits where next-image-loader does for each compiler', async () => {
     const nameFor = async (target: object) =>
       (await runWebpack('?w=100&format=webp', target)).emitted[0]!.name;

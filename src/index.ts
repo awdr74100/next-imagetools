@@ -95,7 +95,9 @@ function webpackRule(options: LoaderOptions, extensions: string[], context: Webp
   if (typeof salt === 'string' && salt) webpack.outputHashSalt = salt;
   const loaderOptions: ResolvedLoaderOptions = { ...options, webpack };
   return {
-    test: new RegExp(`\\.(?:${extensions.map(escapeRegExp).join('|')})$`),
+    // case-insensitive like Next.js' own image rule, which would otherwise take `photo.JPG?w=400`
+    // and ignore the query
+    test: new RegExp(`\\.(?:${extensions.map(escapeRegExp).join('|')})$`, 'i'),
     resourceQuery: /^\?(?![\s\S]*__next_)[\s\S]/,
     issuer: { not: /\.(?:css|scss|sass)$/ },
     dependency: { not: ['url'] },
