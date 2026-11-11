@@ -121,7 +121,23 @@ describe('withImagetools', () => {
     )!;
     const options = rules.flatMap(r => (r.loaders as { options?: object }[]).map(l => l.options));
     for (const o of options)
-      expect(o).toEqual({ cache: { dir: '.cache/x' }, removeMetadata: false, namedExports: false });
+      expect(o).toEqual({
+        cache: { dir: '.cache/x' },
+        removeMetadata: false,
+        namedExports: false,
+        typesDir: '.next/types/turbopack-imagetools',
+      });
+  });
+
+  it('puts generated types under the distDir, where Next.js keeps its own', () => {
+    const typesDir = (config: NextConfig) =>
+      rulesFor(withImagetools(config, { extensions: ['jpg'] }), '*.jpg')!.map(
+        r => (r.loaders as { options: { typesDir: string } }[])[0]!.options.typesDir,
+      );
+    expect(new Set(typesDir({}))).toEqual(new Set(['.next/types/turbopack-imagetools']));
+    expect(new Set(typesDir({ distDir: 'build' }))).toEqual(
+      new Set(['build/types/turbopack-imagetools']),
+    );
   });
 
   it('does not mutate the config it was given', () => {

@@ -23,6 +23,7 @@ import spacedSrcset from '../images/my photo (1).jpg?w=40;80&format=webp&as=srcs
 // excluded in next.config.ts: the query is ignored and Next.js returns its usual StaticImageData
 import excluded from '../images/raw/photo.jpg?w=10&format=webp&imagetools';
 import Hidden from './hidden';
+import { typed } from './typed';
 
 // Rendered by every route in the mode matrix (static, SSR, edge, CSR, Pages Router, export).
 export default function ImageGrid({ mode }: { mode: string }) {
@@ -102,6 +103,7 @@ export default function ImageGrid({ mode }: { mode: string }) {
             plain,
             heroNext,
             heroPlaceholder,
+            typed,
           }),
         }}
       />

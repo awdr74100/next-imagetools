@@ -5,7 +5,7 @@
     "build": "next build",
     "dev": "next dev",
     "start": "next start",
-    "typecheck": "next typegen && tsc --noEmit -p tsconfig.json"
+    "typecheck": "next typegen && node node_modules/turbopack-imagetools/dist/cli.mjs typegen && tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "next": "^16.4.5",

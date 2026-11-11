@@ -79,7 +79,12 @@ export function withImagetools(
   nextConfig: NextConfig = {},
   options: ImagetoolsOptions = {},
 ): NextConfig {
-  const { extensions = DEFAULT_EXTENSIONS, ...loaderOptions } = options;
+  const { extensions = DEFAULT_EXTENSIONS, ...userOptions } = options;
+  // generated types go where Next.js' own do: its tsconfig includes `<distDir>/types/**/*.ts`
+  const loaderOptions: LoaderOptions = {
+    ...userOptions,
+    typesDir: `${nextConfig.distDir ?? '.next'}/types/turbopack-imagetools`,
+  };
   warnOnMultiValueDefaults(loaderOptions.defaultDirectives);
   const rules: TurbopackRules = { ...nextConfig.turbopack?.rules };
   for (const ext of extensions) {

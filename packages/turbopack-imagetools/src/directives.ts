@@ -53,6 +53,9 @@ export const KNOWN_DIRECTIVES = new Set([
   'left top',
 ]);
 
+/** Type-only markers (see client.d.ts), dropped before processing. */
+export const TYPE_MARKERS = ['imagetools', 'imagetools-gallery'];
+
 /** Names people reach for that imagetools-core doesn't read, with what to use instead. */
 const REPLACEMENTS: Record<string, string> = {
   width: 'w',

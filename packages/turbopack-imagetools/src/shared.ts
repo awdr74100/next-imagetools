@@ -54,6 +54,10 @@ export interface LoaderOptions {
    * functions; see `ImagetoolsConfig` in `turbopack-imagetools/config`.
    */
   configFile?: string;
+  /** Generate exact types for each import's query (default: true). */
+  types?: boolean;
+  /** Where generated types go, relative to the Next.js app; set by withImagetools from distDir. */
+  typesDir?: string;
 }
 
 export const toParams = (directives: Directives | undefined): URLSearchParams | undefined =>
