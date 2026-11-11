@@ -21,6 +21,23 @@ const HERO_COPIES = ['my photo (1).jpg', 'café.jpg'].map(name => path.join(ROOT
 export const ACCENTED = HERO_COPIES[1]!;
 const env = { ...process.env, NEXT_TELEMETRY_DISABLED: '1' };
 
+const ALL_BUNDLERS = ['turbopack', 'webpack'] as const;
+export type Bundler = (typeof ALL_BUNDLERS)[number];
+
+/**
+ * Every suite runs once per bundler: Turbopack, Next.js' default, and webpack (`--webpack`).
+ * `NIT_BUNDLER` narrows that to one, so CI can run the bundlers as parallel jobs.
+ */
+export const BUNDLERS: readonly Bundler[] = (() => {
+  const only = process.env.NIT_BUNDLER;
+  if (!only) return ALL_BUNDLERS;
+  if (!(ALL_BUNDLERS as readonly string[]).includes(only)) {
+    throw new Error(`NIT_BUNDLER must be one of ${ALL_BUNDLERS.join(', ')}, got "${only}"`);
+  }
+  return [only as Bundler];
+})();
+const bundlerFlags = (bundler: Bundler) => (bundler === 'webpack' ? ['--webpack'] : []);
+
 // Fail loudly rather than test a stale or missing build.
 if (!existsSync(path.join(DIST, 'loader.cjs'))) {
   throw new Error('dist is missing; run `pnpm build` first.');
@@ -53,17 +70,23 @@ export function clean({ next = false, imagetools = false }) {
 }
 
 export function build({
+  bundler = 'turbopack',
   exportMode = false,
   root = ROOT,
   extraEnv = {},
-}: { exportMode?: boolean; root?: string; extraEnv?: Record<string, string> } = {}) {
-  const res = spawnSync(process.execPath, [nextBin(root), 'build'], {
+}: {
+  bundler?: Bundler;
+  exportMode?: boolean;
+  root?: string;
+  extraEnv?: Record<string, string>;
+} = {}) {
+  const res = spawnSync(process.execPath, [nextBin(root), 'build', ...bundlerFlags(bundler)], {
     cwd: root,
     env: { ...env, NIT_EXPORT: exportMode ? '1' : '', ...extraEnv },
     encoding: 'utf8',
   });
   if (res.status !== 0) throw new Error(`next build failed:\n${res.stdout}\n${res.stderr}`);
-  // Turbopack prints its warnings on either stream
+  // the bundlers print their warnings on either stream
   return `${res.stdout}\n${res.stderr}`;
 }
 
@@ -163,12 +186,15 @@ export function startServer(
   port: number,
   root = ROOT,
   // `next start` loads next.config again, so it needs the env the build was configured with
+  // `next start` serves whatever was built; only `next dev` takes the bundler
   {
+    bundler = 'turbopack',
     readyPath = '/',
     extraEnv = {},
-  }: { readyPath?: string; extraEnv?: Record<string, string> } = {},
+  }: { bundler?: Bundler; readyPath?: string; extraEnv?: Record<string, string> } = {},
 ) {
-  return startProcess([nextBin(root), mode, '-p', String(port)], {
+  const flags = mode === 'dev' ? bundlerFlags(bundler) : [];
+  return startProcess([nextBin(root), mode, ...flags, '-p', String(port)], {
     cwd: root,
     port,
     name: `next ${mode}`,

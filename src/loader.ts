@@ -1,9 +1,12 @@
-// imagetools loader for Turbopack.
+// imagetools loader for Turbopack and webpack.
 //
 // Turbopack has no emitFile, and files written mid-build are not visible to its resolver, so for
 // every generated image the module imports the source again as `<file>?nit=…&<config>`. That
 // import is matched by a rule with `type: 'asset'` whose loader (asset-loader.ts) returns the
 // encoded bytes, and Turbopack's own asset pipeline hashes and emits them.
+//
+// webpack has emitFile, so there the loader emits each image itself, where Next.js' own
+// next-image-loader puts static images, and the module holds plain URLs.
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -35,6 +38,7 @@ import {
   withContext,
   type LoaderContext,
   type LoaderOptions,
+  type WebpackTarget,
 } from './shared';
 
 const PLACEHOLDER = (i: number) => `__NIT_${i}__`;
@@ -139,6 +143,19 @@ function uniqueByConfig(images: ProcessedImage[]): ProcessedImage[] {
 
 // loader-runner awaits a returned promise, so no this.async() is needed
 export default function imagetoolsLoader(this: LoaderContext): Promise<string> {
+  return withContext(this, () => load.call(this));
+}
+
+/**
+ * Under webpack, the whole import is handled here, in the pitch phase. Next.js' own image rule
+ * matches the same file, and its loader would turn the image into a module of its own; the rule
+ * that uses this loader is `enforce: 'post'`, so this pitch runs before any other loader, and
+ * returning a module skips all of them. Turbopack never sets `webpack`, so it falls through.
+ */
+export function pitch(this: LoaderContext): Promise<string> | undefined {
+  if (!this.getOptions?.().webpack) return undefined;
+  // a pitch that returns never reads the resource, so webpack doesn't watch it unless told
+  this.addDependency?.(this.resourcePath);
   return withContext(this, () => load.call(this));
 }
 
@@ -263,6 +280,8 @@ async function load(this: LoaderContext): Promise<string> {
       let src: string;
       if (inline) {
         src = `data:${MIME_TYPES[ext ?? ''] ?? `image/${ext}`};base64,${r.data.toString('base64')}`;
+      } else if (options.webpack) {
+        src = emitImage(this, options.webpack, r.data, ext ?? 'bin');
       } else {
         assetQueries[i] =
           `?${MARKER}=${sourceHash.slice(0, 12)}&${MARKER}_ext=${ext}&${new URLSearchParams(config)}`;
@@ -328,6 +347,32 @@ const __nit_value = ${json};
 export default __nit_value;
 ${namedExports}
 `;
+}
+
+/**
+ * Emits one image under webpack, named like Turbopack names it — `hero.<hash>.jpg` when the format
+ * is the source's, `hero.jpg.<hash>.webp` when it changes — at the path next-image-loader uses for
+ * the compiler at hand, so it ends up in `.next/static/media` whichever compiler emitted it.
+ * Returns its URL.
+ */
+function emitImage(ctx: LoaderContext, target: WebpackTarget, data: Buffer, ext: string): string {
+  const source = path.basename(ctx.resourcePath);
+  const sourceExt = path.extname(source).slice(1);
+  const stem = sourceExt === ext ? source.slice(0, -sourceExt.length - 1) : source;
+  // a content hash: identical variants share a file, and an edit never reuses a name
+  const contentHash = hash([target.outputHashSalt ?? '', data]).slice(0, 16);
+  const name = `${stem}.${contentHash}.${ext}`;
+  const file = `static/media/${name}`;
+  // the client compiler writes to .next/, the others below it (see next-image-loader)
+  const up =
+    target.compilerType === 'client'
+      ? ''
+      : target.isDev || target.compilerType === 'edge-server'
+        ? '../'
+        : '../../';
+  ctx.emitFile?.(up + file, data);
+  // a space would split a srcset entry in two; encodeURIComponent leaves `(`, `)` and `.` alone
+  return `${target.assetPrefix}/_next/static/media/${encodeURIComponent(name)}`;
 }
 
 // Reserved words can't be export names; everything else that is a valid identifier can.

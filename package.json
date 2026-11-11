@@ -12,7 +12,8 @@
     "srcset",
     "static-export",
     "turbopack",
-    "webp"
+    "webp",
+    "webpack"
   ],
   "homepage": "https://github.com/awdr74100/next-imagetools#readme",
   "bugs": {
@@ -77,6 +78,7 @@
     "lint:english": "node scripts/check-english.mjs",
     "lint:fix": "oxlint --fix .",
     "playground": "pnpm build && pnpm -C playground run dev",
+    "playground:webpack": "pnpm build && pnpm -C playground run dev:webpack",
     "release": "node scripts/release.mjs",
     "test": "vitest run",
     "test:e2e": "vitest run --project e2e",

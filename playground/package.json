@@ -3,7 +3,9 @@
   "private": true,
   "scripts": {
     "build": "next build",
+    "build:webpack": "next build --webpack",
     "dev": "next dev",
+    "dev:webpack": "next dev --webpack",
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit -p tsconfig.json"
   },
