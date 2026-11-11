@@ -14,6 +14,6 @@ What is this PR solving, and why? Link the issues it resolves, e.g. `Fixes #123`
 
 ## Checklist
 
-- [ ] The canonical checks pass locally: `pnpm check && pnpm build && pnpm test`
+- [ ] The canonical checks pass locally: `pnpm build && pnpm check && pnpm test`
 - [ ] Tests are added or updated for any behavior change — including the cache states it can meet (cold, warm, one cache cleared, source edited) when it touches caching
 - [ ] Documentation is updated if needed

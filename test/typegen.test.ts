@@ -28,7 +28,11 @@ describe('imageCount and shapeOf', () => {
     ['?w=400;800&format=avif;webp&as=picture', 4, 'ImagetoolsPicture'],
     ['?w=400&format=webp&as=metadata', 1, 'ImagetoolsMetadata'],
     ['?w=400;800&as=metadata', 2, '(ImagetoolsMetadata)[]'],
-    ['?w=400&as=metadata:width;height', 1, 'Pick<ImagetoolsMetadata, "width" | "height">'],
+    [
+      '?w=400&as=metadata:width;height',
+      1,
+      'Pick<ImagetoolsMetadata, Extract<"width" | "height", keyof ImagetoolsMetadata>>',
+    ],
     ['?w=400&placeholder&as=img', 1, 'ImagetoolsImg & { placeholder: string }'],
     ['?w=400;800&format=webp&as=next', 2, 'ImagetoolsStaticImage'],
     ['?w=400&format=webp;', 1, 'string'],
@@ -71,6 +75,8 @@ describe('the generated declarations, compiled', () => {
     '?w=400&format=webp&as=metadata',
     '?w=400;800&format=webp&as=metadata',
     '?w=400&as=metadata:width;height',
+    // a misspelled key and one that can't be an export name
+    '?w=400&as=metadata:width;heigth;default',
     '?w=400&placeholder&as=img',
     '?w=400&format=webp&as=img',
     '?w=400;800&format=avif;webp&as=picture',
@@ -86,6 +92,7 @@ import srcset from './hero.jpg?w=400;800&format=webp&as=srcset';
 import meta, { width } from './hero.jpg?w=400&format=webp&as=metadata';
 import metas from './hero.jpg?w=400;800&format=webp&as=metadata';
 import picked from './hero.jpg?w=400&as=metadata:width;height';
+import typo, { width as typoWidth } from './hero.jpg?w=400&as=metadata:width;heigth;default';
 import withPlaceholder, { placeholder } from './hero.jpg?w=400&placeholder&as=img';
 import img from './hero.jpg?w=400&format=webp&as=img';
 import picture from './hero.jpg?w=400;800&format=avif;webp&as=picture';
@@ -102,6 +109,8 @@ meta satisfies { src: string; width: number; height: number; format: string };
 width satisfies number;
 metas satisfies { width: number }[];
 picked satisfies { width: number; height: number };
+typo satisfies { width: number };
+typoWidth satisfies number;
 withPlaceholder satisfies { src: string; w: number; placeholder: string };
 placeholder satisfies string;
 img satisfies { src: string; w: number; h: number };
@@ -118,6 +127,8 @@ urls satisfies string;
 metas.width;
 // @ts-expect-error narrowed metadata has no format
 picked.format;
+// @ts-expect-error imagetools-core leaves out a key the metadata doesn't have
+typo.heigth;
 // @ts-expect-error no placeholder without the directive
 img.placeholder;
 // @ts-expect-error a custom format's result is unknown, not any
