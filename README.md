@@ -510,6 +510,14 @@ UV_THREADPOOL_SIZE=2 next build
 
 Measured on 12 variants of a 24-megapixel JPEG in one worker: peak memory went from 549 MB to 405 MB, time from 8.7 s to 9.6 s.
 
+With `--webpack`, also turn webpack's build worker back on. Next.js normally runs webpack in a separate worker process to lower the main process's memory, but turns that off by default for any config with a `webpack()` function — and `withImagetools()` adds one. It works with next-imagetools:
+
+```ts
+export default withImagetools({
+  experimental: { webpackBuildWorker: true },
+});
+```
+
 ## Contributing
 
 Bug reports and pull requests are welcome. See [CONTRIBUTING.md](https://github.com/awdr74100/next-imagetools/blob/main/CONTRIBUTING.md) for the development setup and the test suites, and the [Code of Conduct](https://github.com/awdr74100/next-imagetools/blob/main/CODE_OF_CONDUCT.md).

@@ -1,5 +1,5 @@
 // Calls the built loaders directly with a minimal loader context, without Next.js. Fast checks of
-// what the loader emits; the build/dev/mode suites cover what Turbopack does with it.
+// what the loader emits; the build/dev/mode suites cover what the bundlers do with it.
 import {
   mkdirSync,
   mkdtempSync,

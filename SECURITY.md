@@ -23,7 +23,7 @@ next-imagetools runs **only at build time and in `next dev`**, inside the Next.j
 
 - **Inputs.** Image files your source imports, and the directives in the import's query string. Both come from your own repository; the loader never fetches anything over the network.
 - **Decoding.** Images are decoded and encoded by [sharp](https://sharp.pixelplumbing.com/) (libvips). Treat images from untrusted sources the way you would any file handed to an image decoder.
-- **File writes.** Only inside the cache directory (`node_modules/.cache/next-imagetools` by default, or the `cache.dir` you configure). Emitted images go through Turbopack's own asset pipeline into `.next` / `out`.
+- **File writes.** Only inside the cache directory (`node_modules/.cache/next-imagetools` by default, or the `cache.dir` you configure). Emitted images are written by the bundler into `.next` / `out`: through Turbopack's asset pipeline, or webpack's `emitFile` with `--webpack`.
 
 ## Scope
 
@@ -33,4 +33,4 @@ next-imagetools runs **only at build time and in `next dev`**, inside the Next.j
 
 - **Image decoder vulnerabilities** in libvips or sharp — report to [sharp](https://github.com/lovell/sharp/security) / [libvips](https://github.com/libvips/libvips/security); open a regular issue here if a patched release needs a bump.
 - **Other dependencies** — report upstream; open a regular issue here if a bump is needed.
-- **Next.js / Turbopack themselves** — report to [Vercel](https://vercel.com/security).
+- **Next.js, Turbopack or webpack themselves** — report to [Vercel](https://vercel.com/security), or to the webpack project for webpack.
