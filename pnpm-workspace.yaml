@@ -3,7 +3,7 @@ packages:
   - 'test/e2e/fixtures/*'
   - 'playground'
 
-onlyBuiltDependencies:
-  - sharp
-  - oxlint
-  - oxfmt
+allowBuilds:
+  sharp: true
+  oxlint: true
+  oxfmt: true
