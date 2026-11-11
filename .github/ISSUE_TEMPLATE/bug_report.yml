@@ -34,6 +34,17 @@ body:
     validations:
       required: true
   - type: dropdown
+    id: bundler
+    attributes:
+      label: Bundler
+      description: Turbopack is Next.js' default; webpack is `next dev --webpack` / `next build --webpack`.
+      multiple: true
+      options:
+        - Turbopack
+        - webpack
+    validations:
+      required: true
+  - type: dropdown
     id: mode
     attributes:
       label: Where does it happen?
