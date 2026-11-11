@@ -64,7 +64,8 @@ export function build({
     encoding: 'utf8',
   });
   if (res.status !== 0) throw new Error(`next build failed:\n${res.stdout}\n${res.stderr}`);
-  return res.stdout;
+  // Turbopack prints its warnings on either stream
+  return `${res.stdout}\n${res.stderr}`;
 }
 
 const MIME: Record<string, string> = {

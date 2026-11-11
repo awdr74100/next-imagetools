@@ -456,8 +456,6 @@ Generated files are named after their source: `hero.<hash>.jpg` when the format 
 
 **`Cannot find module './photo.jpg?…'` in TypeScript.** The import has no generated type yet: start `next dev` (or build) once, or run `turbopack-imagetools typegen` — needed before a `tsc` that runs ahead of the build. See [TypeScript](#typescript).
 
-**`Warning: AVIF image not supported` during the build.** Turbopack logs this for generated AVIF files. The files are emitted correctly; the warning comes from Turbopack's own image handling and can be ignored.
-
 **The build runs out of memory.** sharp encodes on Node's libuv thread pool — 4 threads per process by default — and Turbopack runs several loader worker processes, which all inherit the pool size. A smaller pool lowers peak memory for some speed:
 
 ```bash

@@ -5,7 +5,11 @@ import { BLUE, RED, build, clean, startServer, verifyPage, writeHero } from './h
 const PORT = 3201;
 
 async function buildAndVerify(color: typeof BLUE) {
-  build();
+  const log = build();
+  // An early prototype made Turbopack log "AVIF image not supported" for generated AVIF files
+  // (they were emitted fine). The cause wasn't pinned down before it went away, so guard against
+  // it coming back.
+  expect(log).not.toMatch(/AVIF image not supported/);
   const server = await startServer('start', PORT);
   try {
     return await verifyPage(server.base, color);
