@@ -323,6 +323,36 @@ export function Zoom() {
 }
 ```
 
+### Background images in CSS
+
+Directives only work in imports from JavaScript. A query in a stylesheet's `url()` isn't processed, and nothing warns about it: `url(./hero.jpg?w=1600&format=webp)` points at an internal module under Turbopack, and at the original, unconverted image under webpack. (vite-imagetools doesn't process them either.) Neither bundler tells a loader that an import comes from CSS, so the same query can't give a URL to JavaScript and an image to a stylesheet.
+
+Import the image in a component instead, and hand its URL to the stylesheet through a custom property:
+
+```tsx
+import hero from './hero.jpg?w=1600&format=webp&imagetools';
+
+<section className="hero" style={{ '--hero': `url(${hero})` } as React.CSSProperties} />;
+```
+
+```css
+.hero {
+  background-image: var(--hero);
+  background-size: cover;
+}
+```
+
+The generated URLs are absolute (`/_next/static/media/…`, with `basePath` or `assetPrefix` when set), so they resolve the same from any stylesheet. For modern formats with a fallback, build an `image-set()`; the browser takes the first type it supports:
+
+```tsx
+import avif from './hero.jpg?w=1600&format=avif&imagetools';
+import webp from './hero.jpg?w=1600&format=webp&imagetools';
+
+const hero = `image-set(url(${avif}) type('image/avif'), url(${webp}) type('image/webp'))`;
+
+<section className="hero" style={{ '--hero': hero } as React.CSSProperties} />;
+```
+
 ### Deploying
 
 Generated images are emitted with the rest of Next.js' static files, so they follow your deployment settings without extra configuration:
