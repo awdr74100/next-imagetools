@@ -79,6 +79,7 @@ pnpm playground            # build + next dev in playground/
 - **No AI attribution** in commits or PRs: no `Co-Authored-By` trailers, no mentions of AI tools.
 - Match the surrounding code: comment _why_, not what; formatting is oxfmt's.
 - Keep docs truthful: only document what is implemented and tested.
+- oxfmt sorts imports inside Markdown code blocks too, so a comment on its own line after an import can end up under a different one. In README examples, put the comment on the import's line, or each import in its own block.
 
 ## Releasing
 

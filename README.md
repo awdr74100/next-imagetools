@@ -73,7 +73,7 @@ export default withImagetools(nextConfig);
 
 Wrapping the config is how Next.js plugins hook in (`@next/mdx`, `@next/bundle-analyzer` and others work the same way). `withImagetools` only adds rules to `turbopack.rules`; the rest of your config is passed through untouched, and rules you already have for image files keep running first.
 
-Then [set up the types](#typescript) if you use TypeScript.
+With TypeScript, every image import gets an exact type generated for it — see [TypeScript](#typescript).
 
 ## Usage
 
@@ -254,10 +254,15 @@ The `blurDataURL` is made the way Next.js makes its own: the image shrunk to 8 p
 For other outputs, add the **`placeholder`** directive to put a placeholder on the result — one import for the image and its placeholder:
 
 ```ts
-import avatar from './me.jpg?w=96&h=96&fit=cover&format=webp&placeholder=color&as=img';
-// photo.placeholder → "data:image/webp;base64,…" (8px on its longer side; blur it with CSS)
 import photo from './photo.jpg?w=400;800&format=avif;webp;jpg&placeholder&as=picture';
-// avatar.placeholder → "#48a898", the dominant color
+
+photo.placeholder; // "data:image/webp;base64,…" — 8px on its longer side; blur it with CSS
+```
+
+```ts
+import avatar from './me.jpg?w=96&h=96&fit=cover&format=webp&placeholder=color&as=img';
+
+avatar.placeholder; // "#48a898", the dominant color
 ```
 
 - `placeholder` / `placeholder=blur` — a tiny image as a data URL
@@ -267,12 +272,15 @@ Placeholders are made from the processed image, so a cropped variant gets a plac
 
 ### With `next/image`
 
-The generated files are already optimized, so tell `next/image` not to optimize them again with `unoptimized` (otherwise Next.js re-encodes them through `/_next/image` at request time):
+There are two ways to combine them:
+
+- **`as=next`**, as in [Blur placeholders](#blur-placeholders): `next/image` treats the result like any static import — it still serves sizes for each screen through its optimizer, and the blur placeholder works.
+- **`unoptimized`**: the generated file is served as it is, with no `/_next/image` round trip at request time — and no image server needed at all:
 
 ```tsx
 import Image from 'next/image';
 
-import photo from './photo.jpg?w=1200&format=webp&as=metadata&imagetools';
+import photo from './photo.jpg?w=1200&format=webp&as=metadata';
 
 <Image src={photo.src} width={photo.width} height={photo.height} alt="" unoptimized />;
 ```
@@ -298,7 +306,7 @@ Nothing special is needed. Images are generated because they are imported, not b
 'use client';
 import { useState } from 'react';
 
-import zoomed from './photo.jpg?w=2000&format=webp&imagetools';
+import zoomed from './photo.jpg?w=2000&format=webp';
 
 export function Zoom() {
   const [open, setOpen] = useState(false);
@@ -361,7 +369,7 @@ export default withImagetools(nextConfig, {
 
 ```ts
 import hero from './banner.jpg?preset=hero';
-import avatar from './me.jpg?preset=thumb&imagetools';
+import avatar from './me.jpg?preset=thumb';
 ```
 
 - **`presets`** — named directive sets, as a query string or an object. An unknown preset name fails the build.
