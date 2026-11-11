@@ -4,7 +4,7 @@
   "workspaces": {
     ".": {},
     "packages/turbopack-imagetools": {},
-    "test/fixtures/next-app": {
+    "test/e2e/fixtures/next-app": {
       "entry": ["types.check.ts", "imagetools.config.mjs"]
     },
     "playground": {}

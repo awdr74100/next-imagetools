@@ -10,8 +10,8 @@ import { beforeEach, expect } from 'vitest';
 
 // The fixture app consumes the package through its built `dist`, the way users will.
 const ROOT = path.resolve(import.meta.dirname, 'fixtures/next-app');
-const DIST = path.resolve(import.meta.dirname, '../packages/turbopack-imagetools/dist');
-export const PLAYGROUND = path.resolve(import.meta.dirname, '../playground');
+const DIST = path.resolve(import.meta.dirname, '../../packages/turbopack-imagetools/dist');
+export const PLAYGROUND = path.resolve(import.meta.dirname, '../../playground');
 const nextBin = (root: string) => path.join(root, 'node_modules/next/dist/bin/next');
 export const HERO = path.join(ROOT, 'images/hero.jpg');
 const env = { ...process.env, NEXT_TELEMETRY_DISABLED: '1' };

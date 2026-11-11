@@ -10,5 +10,5 @@
   },
   "include": ["test/**/*.ts", "vitest.config.mts", "scripts/**/*.mjs"],
   // the fixture app is a Next.js project with its own tsconfig
-  "exclude": ["test/fixtures"]
+  "exclude": ["test/e2e/fixtures"]
 }
