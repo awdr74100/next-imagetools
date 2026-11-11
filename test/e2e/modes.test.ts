@@ -35,7 +35,7 @@ beforeAll(async () => {
 });
 afterAll(() => browser?.close());
 
-describe.sequential('rendering modes, next start', () => {
+describe('rendering modes, next start', { concurrent: false }, () => {
   let server: Awaited<ReturnType<typeof startServer>>;
   logServerOnFailure(() => server);
   beforeAll(async () => {
@@ -53,7 +53,7 @@ describe.sequential('rendering modes, next start', () => {
   }
 });
 
-describe.sequential('rendering modes, output: export on a plain static server', () => {
+describe('rendering modes, output: export on a plain static server', { concurrent: false }, () => {
   let server: Awaited<ReturnType<typeof serveExport>>;
   beforeAll(async () => {
     clean({ next: true, imagetools: true });
@@ -70,7 +70,7 @@ describe.sequential('rendering modes, output: export on a plain static server', 
   }
 });
 
-describe.sequential('rendering modes, next dev', () => {
+describe('rendering modes, next dev', { concurrent: false }, () => {
   let server: Awaited<ReturnType<typeof startServer>>;
   logServerOnFailure(() => server);
   beforeAll(async () => {
