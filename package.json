@@ -1,6 +1,6 @@
 {
   "name": "next-imagetools",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Build-time image transforms for Next.js: import './a.jpg?w=400;800&format=webp&as=srcset' and get optimized files, no image server needed.",
   "keywords": [
     "avif",
