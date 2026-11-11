@@ -1,6 +1,6 @@
 {
   "name": "next-imagetools",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Build-time image transforms for Next.js. Import an image with a query, get optimized static files: no image server, works with static export.",
   "keywords": [
     "avif",

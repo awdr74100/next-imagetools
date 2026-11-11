@@ -1,6 +1,44 @@
 # Changelog
 
 
+## v0.2.0
+
+[compare changes](https://github.com/awdr74100/next-imagetools/compare/v0.1.0...v0.2.0)
+
+### 🚀 Enhancements
+
+- Support Next.js with webpack (next build --webpack) ([#29](https://github.com/awdr74100/next-imagetools/pull/29))
+
+### 🩹 Fixes
+
+- Check that as=metadata comes right before the type marker ([#33](https://github.com/awdr74100/next-imagetools/pull/33))
+- Match upper-case extensions under webpack, as Next.js does ([#34](https://github.com/awdr74100/next-imagetools/pull/34))
+
+### 📖 Documentation
+
+- Add an npm version badge to the README ([#28](https://github.com/awdr74100/next-imagetools/pull/28))
+- Explain background images in CSS, and that url() queries aren't processed ([#31](https://github.com/awdr74100/next-imagetools/pull/31))
+- Cover webpack where the docs assumed Turbopack, and align the package description ([#37](https://github.com/awdr74100/next-imagetools/pull/37))
+
+### 🏡 Chore
+
+- Leave CHANGELOG.md out of formatting ([#27](https://github.com/awdr74100/next-imagetools/pull/27))
+- Stop publishing source maps ([#32](https://github.com/awdr74100/next-imagetools/pull/32))
+- Add VS Code settings for oxfmt, oxlint and the workspace TypeScript ([#38](https://github.com/awdr74100/next-imagetools/pull/38))
+
+### ✅ Tests
+
+- Cover @/ alias imports, and use them in the playground ([#30](https://github.com/awdr74100/next-imagetools/pull/30))
+- Wait for hydration before clicking in the mode suite ([#35](https://github.com/awdr74100/next-imagetools/pull/35))
+
+### 🤖 CI
+
+- Install Chromium without apt in the release workflow, and ask for the bundler in bug reports ([#36](https://github.com/awdr74100/next-imagetools/pull/36))
+
+### ❤️ Contributors
+
+- Roya ([@awdr74100](https://github.com/awdr74100))
+
 ## v0.1.0
 
 
