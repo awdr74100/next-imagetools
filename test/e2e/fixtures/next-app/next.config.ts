@@ -19,8 +19,6 @@ const nextConfig: NextConfig = {
 
 export default withImagetools(nextConfig, {
   presets: { thumb: 'w=120&format=webp' },
-  // exact types for components/typed.ts, which has no markers
-  types: true,
   // imports from here keep Next.js' own handling, query or not
   exclude: ['images/raw/**'],
   configFile: './imagetools.config.mjs',

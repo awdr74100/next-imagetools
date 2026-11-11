@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 // Calls the built loaders directly with a minimal loader context, without Next.js. Fast checks of
 // what the loader emits; the build/dev/mode suites cover what Turbopack does with it.
 import {
@@ -71,11 +70,29 @@ describe('module loader', () => {
 
   it('type markers do not change the output or the cache entries', async () => {
     const plain = await runModule('?w=400&format=webp');
+    const pair = await runModule('?w=400;800&format=webp');
     const entries = readdirSync(cacheDir).length;
     expect(await runModule('?w=400&format=webp&imagetools')).toBe(plain);
-    expect(await runModule('?w=400&format=webp&imagetools-gallery')).toBe(plain);
+    expect(await runModule('?w=400;800&format=webp&imagetools-gallery')).toBe(pair);
     expect(readdirSync(cacheDir)).toHaveLength(entries);
     expect(plain).not.toMatch(/imagetools/);
+  });
+
+  it('fails the build when a type marker disagrees with what the import gives', async () => {
+    await expect(runModule('?w=400;800&format=webp&imagetools')).rejects.toThrow(
+      'turbopack-imagetools: hero.jpg?w=400;800&format=webp&imagetools: the query gives 2 images, ' +
+        'an array, but &imagetools types it as a single value. End it with &imagetools-gallery.',
+    );
+    // the count includes what a preset adds
+    await expect(
+      runModule('?preset=pair&imagetools', { presets: { pair: 'w=400;800&format=webp' } }),
+    ).rejects.toThrow(/gives 2 images/);
+    await expect(runModule('?w=400&format=webp&as=img&imagetools')).rejects.toThrow(
+      /as=img is typed without a marker/,
+    );
+    await expect(
+      runModule('?preset=pair&imagetools-gallery', { presets: { pair: 'w=400;800&format=webp' } }),
+    ).resolves.toBeTypeOf('string');
   });
 
   it('one asset import per resolved config, carrying the output extension', async () => {
@@ -709,68 +726,6 @@ describe('module loader', () => {
         width: 350,
         height: 263,
       });
-    });
-  });
-
-  describe('generated types', () => {
-    const typesDirFor = () => mkdtempSync(path.join(tmpdir(), 'tpit-types-'));
-    const declarationFile = (dir: string, query: string) =>
-      path.join(dir, `${createHash('sha1').update(query).digest('hex').slice(0, 16)}.d.ts`);
-
-    it('writes the declaration for the query into typesDir', async () => {
-      const typesDir = typesDirFor();
-      try {
-        await runModule('?w=301;601&format=webp', { typesDir });
-        const content = readFileSync(declarationFile(typesDir, '?w=301;601&format=webp'), 'utf8');
-        expect(content).toContain('declare module ".*?w=301;601&format=webp"');
-        expect(content).toContain('type Value = string[];');
-      } finally {
-        rmSync(typesDir, { recursive: true, force: true });
-      }
-    });
-
-    it('leaves an unchanged declaration alone, so editors are not told to reload it', async () => {
-      const typesDir = typesDirFor();
-      try {
-        await runModule('?w=302&format=webp', { typesDir });
-        const file = declarationFile(typesDir, '?w=302&format=webp');
-        utimesSync(file, new Date(0), new Date(0));
-        await runModule('?w=302&format=webp', { typesDir });
-        expect(statSync(file).mtimeMs).toBe(0);
-      } finally {
-        rmSync(typesDir, { recursive: true, force: true });
-      }
-    });
-
-    it('writes nothing with types: false, or for an excluded import', async () => {
-      const typesDir = typesDirFor();
-      try {
-        await runModule('?w=303&format=webp', { typesDir, types: false });
-        await runModule('?w=304&format=webp', { typesDir, exclude: ['*.jpg'] });
-        expect(readdirSync(typesDir)).toEqual([]);
-      } finally {
-        rmSync(typesDir, { recursive: true, force: true });
-      }
-    });
-
-    it('warns when the config file defaultDirectives makes the type wrong', async () => {
-      const dir = typesDirFor();
-      try {
-        const configFile = path.join(dir, 'config.mjs');
-        writeFileSync(
-          configFile,
-          `export default { defaultDirectives: () => new URLSearchParams('format=avif;webp') };`,
-        );
-        warnings = [];
-        await runModule('?w=305', { typesDir: path.join(dir, 'types'), configFile });
-        expect(warnings).toEqual([
-          "hero.jpg?w=305: the query alone gives one image, but the config file's " +
-            "defaultDirectives made it 2, so this import's generated type (a single value) won't " +
-            'match what it returns.',
-        ]);
-      } finally {
-        rmSync(dir, { recursive: true, force: true });
-      }
     });
   });
 

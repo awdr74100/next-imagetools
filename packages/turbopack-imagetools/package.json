@@ -25,9 +25,6 @@
     "url": "git+https://github.com/awdr74100/turbopack-imagetools.git",
     "directory": "packages/turbopack-imagetools"
   },
-  "bin": {
-    "turbopack-imagetools": "./dist/cli.mjs"
-  },
   "files": [
     "dist",
     "client.d.ts"
