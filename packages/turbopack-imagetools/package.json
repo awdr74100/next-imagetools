@@ -43,6 +43,22 @@
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
     },
+    "./config": {
+      "types": {
+        "import": "./dist/config.d.mts",
+        "require": "./dist/config.d.cts"
+      },
+      "import": "./dist/config.mjs",
+      "require": "./dist/config.cjs"
+    },
+    "./core": {
+      "types": {
+        "import": "./dist/core.d.mts",
+        "require": "./dist/core.d.cts"
+      },
+      "import": "./dist/core.mjs",
+      "require": "./dist/core.cjs"
+    },
     "./loader": "./dist/loader.cjs",
     "./asset-loader": "./dist/asset-loader.cjs",
     "./client": {

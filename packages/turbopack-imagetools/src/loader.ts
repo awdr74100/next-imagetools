@@ -6,6 +6,7 @@
 // encoded bytes, and Turbopack's own asset pipeline hashes and emits them.
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import {
   builtinOutputFormats,
@@ -13,15 +14,17 @@ import {
   resolveConfigs,
   urlFormat,
   type Logger,
+  type OutputFormat,
   type ProcessedImage,
 } from 'imagetools-core';
 import picomatch from 'picomatch';
-import sharp from 'sharp';
+import sharp, { type Metadata } from 'sharp';
 
 import {
   MARKER,
   prepareCache,
   hash,
+  loadConfig,
   processImage,
   toParams,
   type LoaderContext,
@@ -72,11 +75,16 @@ function isHandled(relativePath: string, { include, exclude }: LoaderOptions): b
 }
 
 /**
- * The directives an import ends up with, lowest precedence first: `defaultDirectives`, then the
- * named preset, then the import's own query. Type-only markers (see client.d.ts) are dropped so a
- * marked import shares cache entries and output files with the same import unmarked.
+ * The directives an import ends up with, lowest precedence first: the `defaultDirectives` option,
+ * then the config file's `defaultDirectives` function, then the named preset, then the import's own
+ * query. Type-only markers (see client.d.ts) are dropped so a marked import shares cache entries
+ * and output files with the same import unmarked.
  */
-function resolveDirectives(query: URLSearchParams, options: LoaderOptions): URLSearchParams {
+function resolveDirectives(
+  query: URLSearchParams,
+  options: LoaderOptions,
+  configDefaults: URLSearchParams | undefined,
+): URLSearchParams {
   for (const marker of TYPE_MARKERS) query.delete(marker);
 
   const presetName = query.get('preset');
@@ -95,7 +103,7 @@ function resolveDirectives(query: URLSearchParams, options: LoaderOptions): URLS
   }
 
   const directives = new URLSearchParams();
-  for (const layer of [toParams(options.defaultDirectives), preset, query]) {
+  for (const layer of [toParams(options.defaultDirectives), configDefaults, preset, query]) {
     for (const [key, value] of layer ?? []) directives.set(key, value);
   }
   return directives;
@@ -123,7 +131,25 @@ export default async function imagetoolsLoader(this: LoaderContext): Promise<str
   }
 
   const cacheDir = await prepareCache(this, options);
-  const directives = resolveDirectives(new URLSearchParams(this.resourceQuery), options);
+  const { config: userConfig, factories, hash: configHash } = await loadConfig(this, options);
+  const outputFormats: Record<string, OutputFormat> =
+    userConfig.extendOutputFormats?.(builtinOutputFormats) ?? builtinOutputFormats;
+
+  let configDefaults: URLSearchParams | undefined;
+  if (userConfig.defaultDirectives) {
+    const url = pathToFileURL(pathname);
+    url.search = this.resourceQuery;
+    let metadata: Promise<Metadata> | undefined;
+    configDefaults = await userConfig.defaultDirectives(
+      url,
+      () => (metadata ??= sharp(pathname).metadata()),
+    );
+  }
+  const directives = resolveDirectives(
+    new URLSearchParams(this.resourceQuery),
+    options,
+    configDefaults,
+  );
   // `inline` changes how the image is delivered, not the image, so it stays out of the configs:
   // an inlined and a regular import of the same variant share one cache entry
   const inline = directives.has('inline');
@@ -155,7 +181,9 @@ export default async function imagetoolsLoader(this: LoaderContext): Promise<str
     }
   }
 
-  const configs = resolveConfigs(extractEntries(directives), builtinOutputFormats);
+  const entries = extractEntries(directives);
+  const configs =
+    userConfig.resolveConfigs?.(entries, outputFormats) ?? resolveConfigs(entries, outputFormats);
   const logger: Logger = {
     info: console.log,
     warn: m => this.emitWarning?.(new Error(m)),
@@ -169,6 +197,8 @@ export default async function imagetoolsLoader(this: LoaderContext): Promise<str
     configs.map(async (config, i): Promise<ProcessedImage> => {
       const r = await processImage({
         source,
+        factories,
+        configHash,
         sourceHash,
         config,
         searchParams: directives,
@@ -201,8 +231,7 @@ export default async function imagetoolsLoader(this: LoaderContext): Promise<str
   );
 
   const [as, args] = directives.get('as')?.split(':') ?? [];
-  const outputFormat =
-    (as && builtinOutputFormats[as as keyof typeof builtinOutputFormats]) || null;
+  const outputFormat = (as && outputFormats[as]) || null;
   const format = outputFormat ? outputFormat(args ? args.split(';') : undefined) : urlFormat();
   const formatted = as && SINGLE_VALUE_FORMATS.has(as) ? uniqueByConfig(outputs) : outputs;
   const result = await format(formatted);

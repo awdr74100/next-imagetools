@@ -5,7 +5,7 @@
     ".": {},
     "packages/turbopack-imagetools": {},
     "test/fixtures/next-app": {
-      "entry": ["types.check.ts"]
+      "entry": ["types.check.ts", "imagetools.config.mjs"]
     },
     "playground": {}
   }

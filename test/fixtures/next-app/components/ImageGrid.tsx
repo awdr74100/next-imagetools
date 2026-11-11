@@ -6,6 +6,8 @@ import heroGallery from '../images/hero.jpg?w=300;600&format=webp&imagetools-gal
 import heroClamped from '../images/hero.jpg?w=1600;3000&format=webp&imagetools-gallery';
 import heroThumb from '../images/hero.jpg?preset=thumb&imagetools';
 import heroInline from '../images/hero.jpg?w=24&format=webp&inline&imagetools';
+// custom output format from imagetools.config.mjs
+import heroDims from '../images/hero.jpg?w=100;200&format=webp&as=dims';
 import heroSrcset from '../images/hero.jpg?w=300;600;900&format=webp&as=srcset';
 import heroPicture from '../images/hero.jpg?w=400;800&format=avif;webp;jpg&as=picture';
 import heroMeta, {
@@ -68,6 +70,7 @@ export default function ImageGrid({ mode }: { mode: string }) {
             heroClamped,
             heroThumb,
             heroInline,
+            heroDims,
             excluded,
             named: { src: namedSrc, width: namedWidth },
             heroSrcset,

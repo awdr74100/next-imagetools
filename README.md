@@ -290,6 +290,63 @@ The directives of an import are layered: `defaultDirectives` first, then the pre
 
 Prefer single values in `defaultDirectives` (`quality`, `effort`, a single `format`). A list such as `format=avif;webp` multiplies the images of _every_ import, turning single values into arrays; the build warns when the config loads.
 
+### Custom transforms and output formats
+
+Turbopack passes loader options to worker processes as JSON, so options that take functions live in a module of their own. Point `configFile` at it (relative to your Next.js app):
+
+```ts
+// next.config.ts
+export default withImagetools(nextConfig, { configFile: './imagetools.config.mjs' });
+```
+
+```js
+// imagetools.config.mjs
+import { defineConfig } from 'turbopack-imagetools/config';
+
+export default defineConfig({
+  // add an output format: import sizes from './a.jpg?w=400;800&as=sizes'
+  extendOutputFormats: builtins => ({
+    ...builtins,
+    sizes: () => images => images.map(image => ({ src: image.src, width: image.info.width })),
+  }),
+
+  // add a transform, applied when its directive is present: ./a.jpg?w=400&sepia
+  extendTransforms: builtins => [
+    ...builtins,
+    config =>
+      'sepia' in config
+        ? (_, image) =>
+            image.recomb([
+              [0.393, 0.769, 0.189],
+              [0.349, 0.686, 0.168],
+              [0.272, 0.534, 0.131],
+            ])
+        : undefined,
+  ],
+
+  // directives that depend on the image itself
+  defaultDirectives: async (url, metadata) =>
+    new URLSearchParams((await metadata()).hasAlpha ? 'format=webp' : 'format=avif'),
+});
+```
+
+- **`extendOutputFormats`** — receives the built-in output formats, returns the ones to use. A format's result is serialized into the importing module, so it must be JSON-serializable.
+- **`extendTransforms`** — receives the built-in transform factories, returns the ones to use.
+- **`resolveConfigs`** — replaces how directives expand into the list of images to generate.
+- **`defaultDirectives`** — directives computed per image; `metadata()` reads the source's [sharp metadata](https://sharp.pixelplumbing.com/api-input#metadata). They sit between the `defaultDirectives` option and the preset.
+
+Editing the config file takes effect immediately, also in a running `next dev`: it is tracked as a dependency of every import that uses it, and its content is part of every cache key. The imagetools-core API it builds on is re-exported from `turbopack-imagetools/core`. A `.ts` config file needs a Node.js version that runs TypeScript natively (22.18 or newer); otherwise use `.mjs` or `.js`.
+
+Types for a custom output format are up to you, as with any `as=` value TypeScript can't know about:
+
+```ts
+// imagetools.d.ts
+declare module '*as=sizes' {
+  const sizes: { src: string; width: number }[];
+  export default sizes;
+}
+```
+
 ## Migrating from vite-imagetools
 
 Directives, output formats and the `&imagetools` type markers are the same, so most imports move over unchanged. Replace the Vite plugin with `withImagetools` in `next.config.ts`, and swap your hand-written module declarations for the [client types](#typescript).
@@ -298,7 +355,7 @@ One deliberate difference: when values clamp to the source size and become ident
 
 `defaultDirectives` takes directives as data (a query string or an object) rather than a function. For per-image presets, use [`presets`](#presets-and-defaults) — `?preset=hero` instead of a custom `?hero` directive.
 
-Not supported yet: the `extendTransforms`, `extendOutputFormats` and `resolveConfigs` options.
+Options that take functions (`extendTransforms`, `extendOutputFormats`, `resolveConfigs`, and `defaultDirectives` as a function) move to a [config file](#custom-transforms-and-output-formats).
 
 ## How it works
 

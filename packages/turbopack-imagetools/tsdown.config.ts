@@ -1,9 +1,10 @@
 import { defineConfig } from 'tsdown';
 
 export default defineConfig([
-  // `withImagetools()` is imported from next.config.{ts,mjs,js}, so it ships both formats.
+  // `withImagetools()` is imported from next.config.{ts,mjs,js}, and `config` / `core` from
+  // config files in either module system, so they ship both formats.
   {
-    entry: { index: 'src/index.ts' },
+    entry: { index: 'src/index.ts', config: 'src/config.ts', core: 'src/core.ts' },
     format: ['esm', 'cjs'],
     platform: 'node',
     target: 'node22',

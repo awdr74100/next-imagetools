@@ -1,6 +1,14 @@
 // Calls the built loaders directly with a minimal loader context, without Next.js. Fast checks of
 // what the loader emits; the build/dev/mode suites cover what Turbopack does with it.
-import { mkdtempSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
+import {
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -228,6 +236,141 @@ describe('module loader', () => {
       await runModule('?w=21&format=webp&inline');
       expect(readdirSync(cacheDir)).toHaveLength(entries);
     });
+  });
+
+  describe('configFile', () => {
+    let dir: string;
+    beforeAll(() => {
+      dir = mkdtempSync(path.join(tmpdir(), 'tpit-config-'));
+    });
+    afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+    let n = 0;
+    /** Writes a config module and returns its absolute path (resolved as-is by the loader). */
+    const writeConfig = (source: string, name = `config-${n++}.mjs`) => {
+      const file = path.join(dir, name);
+      writeFileSync(file, source);
+      return file;
+    };
+    // a transform factory that applies when the `mono` directive is present
+    const mono = (body: string) =>
+      `const mono = cfg => ('mono' in cfg ? (state, image) => ${body} : undefined);`;
+
+    it('adds output formats', async () => {
+      const configFile = writeConfig(
+        `export default { extendOutputFormats: b => ({ ...b, dims: () => imgs => imgs.map(i => ({ w: i.info.width })) }) };`,
+      );
+      expect(exported(await runModule('?w=300;400&format=webp&as=dims', { configFile }))).toEqual([
+        { w: 300 },
+        { w: 400 },
+      ]);
+    });
+
+    it('adds transforms', async () => {
+      const configFile = writeConfig(
+        `${mono('image.grayscale()')}\nexport default { extendTransforms: b => [...b, mono] };`,
+      );
+      const code = await runModule('?w=40&format=png&mono', { configFile });
+      const [r, g, b] = await pixelWith(code, { configFile });
+      expect(r).toBe(g);
+      expect(g).toBe(b);
+    });
+
+    it('replaces resolveConfigs', async () => {
+      const configFile = writeConfig(
+        `export default { resolveConfigs: () => [{ w: '77', format: 'webp' }] };`,
+      );
+      expect(exported(await runModule('?w=300;400&as=metadata:width', { configFile }))).toEqual({
+        width: 77,
+      });
+    });
+
+    it('takes defaultDirectives as a function of the image, beneath the query', async () => {
+      const configFile = writeConfig(
+        `export default { defaultDirectives: async (url, metadata) => new URLSearchParams(
+          (await metadata()).width > 1000 && url.search.includes('w=') ? 'format=webp' : 'format=png') };`,
+      );
+      expect(exported(await runModule('?w=300&as=metadata:format', { configFile }))).toEqual({
+        format: 'webp',
+      });
+      expect(
+        exported(await runModule('?w=300&format=jpg&as=metadata:format', { configFile })),
+      ).toEqual({ format: 'jpg' });
+    });
+
+    it('picks up an edited config file, without serving cached output of the old one', async () => {
+      const name = 'edited.mjs';
+      const options = {
+        configFile: writeConfig(
+          `${mono('image')}\nexport default { extendTransforms: b => [...b, mono] };`,
+          name,
+        ),
+      };
+      const colored = await runModule('?w=41&format=png&mono', options);
+      const [r1, g1] = await pixelWith(colored, options);
+      expect(r1).not.toBe(g1); // the source is blue: no-op transform keeps it colored
+
+      writeConfig(
+        `${mono('image.grayscale()')}\nexport default { extendTransforms: b => [...b, mono] };`,
+        name,
+      );
+      const gray = await runModule('?w=41&format=png&mono', options);
+      const [r2, g2, b2] = await pixelWith(gray, options);
+      expect(r2).toBe(g2);
+      expect(g2).toBe(b2);
+    });
+
+    it('runs the config file example from the README as written', async () => {
+      const readme = readFileSync(path.resolve(import.meta.dirname, '../README.md'), 'utf8');
+      const example = readme.match(/```js\n\/\/ imagetools\.config\.mjs\n([\s\S]*?)```/)?.[1];
+      expect(example, 'the README example').toBeTruthy();
+      // inside the fixture app, so `turbopack-imagetools/config` resolves like in a user's app
+      const configFile = path.join(path.dirname(HERO), '..', `readme-example-${process.pid}.mjs`);
+      writeFileSync(configFile, example!);
+      try {
+        const sizes = exported(await runModule('?w=300;400&as=sizes', { configFile }));
+        expect(sizes).toEqual([
+          { src: '#0', width: 300 },
+          { src: '#1', width: 400 },
+        ]);
+        // the source has no alpha channel, so the example's defaultDirectives picks avif
+        expect(exported(await runModule('?w=50&as=metadata:format', { configFile }))).toEqual({
+          format: 'avif',
+        });
+        const sepia = await pixelWith(await runModule('?w=50&format=png&sepia', { configFile }), {
+          configFile,
+        });
+        const plain = await pixelWith(await runModule('?w=50&format=png', { configFile }), {
+          configFile,
+        });
+        expect(sepia).not.toEqual(plain);
+      } finally {
+        rmSync(configFile, { force: true });
+      }
+    });
+
+    it('registers the config file as a dependency', async () => {
+      const configFile = writeConfig('export default {};');
+      const deps: string[] = [];
+      await moduleLoader.default.call({
+        ...context('?w=42&format=webp', HERO, { configFile }),
+        addDependency: (f: string) => deps.push(f),
+      });
+      expect(deps).toContain(configFile);
+    });
+
+    it('fails clearly when the config file is missing', async () => {
+      await expect(
+        runModule('?w=43&format=webp', { configFile: path.join(dir, 'nope.mjs') }),
+      ).rejects.toThrow(/configFile not found at .*nope\.mjs/);
+    });
+
+    async function pixelWith(code: string, options: object) {
+      const query = code.match(/"\.\/hero\.jpg(\?[^"]+)"/)![1]!;
+      const bytes = (await assetLoader.default.call(context(query, HERO, options))) as Buffer;
+      const { data } = await sharp(bytes).raw().toBuffer({ resolveWithObject: true });
+      return [data[0], data[1], data[2]];
+    }
   });
 
   describe('cache options', () => {
