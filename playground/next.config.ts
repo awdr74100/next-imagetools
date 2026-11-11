@@ -1,5 +1,5 @@
 import type { NextConfig } from 'next';
-import { withImagetools } from 'turbopack-imagetools';
+import { withImagetools } from 'next-imagetools';
 
 const nextConfig: NextConfig = {};
 

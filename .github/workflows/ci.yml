@@ -45,15 +45,16 @@ jobs:
 
   # Turbopack's file watching, persistent caches and the loaders' cache writes all go through the
   # filesystem, which is exactly what differs across platforms: concurrent renames into the cache
-  # failed with EPERM only on Windows. So the build/dev/mode suites run on both.
+  # failed with EPERM only on Windows, and macOS's filesystem is case-insensitive by default. So
+  # every suite runs on all three.
   test:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
-      # One platform failing must not cancel the other — which one broke is the finding.
+      # One platform failing must not cancel the others — which one broke is the finding.
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -103,7 +104,7 @@ jobs:
       - run: pnpm build
 
       - id: min-node
-        run: echo "version=$(node -p "require('./packages/turbopack-imagetools/package.json').engines.node.replace(/^>=\s*/, '')")" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(node -p "require('./package.json').engines.node.replace(/^>=\s*/, '')")" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ steps.min-node.outputs.version }}

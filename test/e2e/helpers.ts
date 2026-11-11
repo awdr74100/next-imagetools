@@ -10,7 +10,7 @@ import { beforeEach, expect } from 'vitest';
 
 // The fixture app consumes the package through its built `dist`, the way users will.
 const ROOT = path.resolve(import.meta.dirname, 'fixtures/next-app');
-const DIST = path.resolve(import.meta.dirname, '../../packages/turbopack-imagetools/dist');
+const DIST = path.resolve(import.meta.dirname, '../../dist');
 export const PLAYGROUND = path.resolve(import.meta.dirname, '../../playground');
 const nextBin = (root: string) => path.join(root, 'node_modules/next/dist/bin/next');
 export const HERO = path.join(ROOT, 'images/hero.jpg');
@@ -23,7 +23,7 @@ const env = { ...process.env, NEXT_TELEMETRY_DISABLED: '1' };
 
 // Fail loudly rather than test a stale or missing build.
 if (!existsSync(path.join(DIST, 'loader.cjs'))) {
-  throw new Error('packages/turbopack-imagetools/dist is missing; run `pnpm build` first.');
+  throw new Error('dist is missing; run `pnpm build` first.');
 }
 
 export type RGB = { r: number; g: number; b: number };
@@ -42,7 +42,7 @@ export async function writeHero(background: RGB) {
 }
 
 /** Imagetools' disk cache in the fixture, at its default location. */
-export const IMAGETOOLS_CACHE = path.join(ROOT, 'node_modules/.cache/turbopack-imagetools');
+export const IMAGETOOLS_CACHE = path.join(ROOT, 'node_modules/.cache/next-imagetools');
 
 export function clean({ next = false, imagetools = false }) {
   if (next) {
@@ -59,7 +59,7 @@ export function build({
 }: { exportMode?: boolean; root?: string; extraEnv?: Record<string, string> } = {}) {
   const res = spawnSync(process.execPath, [nextBin(root), 'build'], {
     cwd: root,
-    env: { ...env, TPIT_EXPORT: exportMode ? '1' : '', ...extraEnv },
+    env: { ...env, NIT_EXPORT: exportMode ? '1' : '', ...extraEnv },
     encoding: 'utf8',
   });
   if (res.status !== 0) throw new Error(`next build failed:\n${res.stdout}\n${res.stderr}`);

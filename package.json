@@ -1,12 +1,73 @@
 {
-  "name": "turbopack-imagetools-monorepo",
-  "private": true,
-  "description": "Build-time image transforms for Next.js with Turbopack, powered by imagetools-core.",
+  "name": "next-imagetools",
+  "version": "0.0.0",
+  "description": "Build-time image transforms for Next.js: import './a.jpg?w=400;800&format=webp&as=srcset' and get optimized files, no image server needed.",
+  "keywords": [
+    "avif",
+    "imagetools",
+    "next",
+    "nextjs",
+    "responsive-images",
+    "sharp",
+    "srcset",
+    "static-export",
+    "turbopack",
+    "webp"
+  ],
+  "homepage": "https://github.com/awdr74100/next-imagetools#readme",
+  "bugs": {
+    "url": "https://github.com/awdr74100/next-imagetools/issues"
+  },
   "license": "MIT",
   "author": "Roya <a78945612385238@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/awdr74100/next-imagetools.git"
+  },
+  "files": [
+    "dist",
+    "client.d.ts"
+  ],
   "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": {
+        "import": "./dist/index.d.mts",
+        "require": "./dist/index.d.cts"
+      },
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
+    "./config": {
+      "types": {
+        "import": "./dist/config.d.mts",
+        "require": "./dist/config.d.cts"
+      },
+      "import": "./dist/config.mjs",
+      "require": "./dist/config.cjs"
+    },
+    "./core": {
+      "types": {
+        "import": "./dist/core.d.mts",
+        "require": "./dist/core.d.cts"
+      },
+      "import": "./dist/core.mjs",
+      "require": "./dist/core.cjs"
+    },
+    "./loader": "./dist/loader.cjs",
+    "./asset-loader": "./dist/asset-loader.cjs",
+    "./client": {
+      "types": "./client.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
   "scripts": {
-    "build": "pnpm -C packages/turbopack-imagetools run build",
+    "build": "tsdown",
+    "build:watch": "tsdown --watch",
     "check": "pnpm typecheck && pnpm lint && pnpm lint:english && pnpm format:check && pnpm knip",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
@@ -22,20 +83,30 @@
     "test:unit": "vitest run --project unit",
     "typecheck": "pnpm -r run typecheck && tsc --noEmit -p tsconfig.json"
   },
+  "dependencies": {
+    "imagetools-core": "^12.0.0",
+    "picomatch": "^4.0.7",
+    "sharp": "^0.35.5"
+  },
   "devDependencies": {
     "@types/node": "^26.6.6",
+    "@types/picomatch": "^4.0.3",
     "changelogen": "^0.6.2",
-    "imagetools-core": "^12.0.0",
     "knip": "^6.44.2",
+    "next": "catalog:",
     "oxfmt": "^0.78.0",
     "oxlint": "^1.93.0",
     "playwright": "^1.65.0",
-    "sharp": "^0.35.5",
-    "typescript": "^6.0.3",
+    "publint": "^0.3.25",
+    "tsdown": "^0.23.7",
+    "typescript": "catalog:",
     "vitest": "^5.1.0"
   },
+  "peerDependencies": {
+    "next": ">=16.2.0"
+  },
   "engines": {
-    "node": ">=26.0.0"
+    "node": ">=22.12.0"
   },
   "packageManager": "pnpm@12.18.0"
 }

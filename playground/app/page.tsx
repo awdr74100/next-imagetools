@@ -20,7 +20,7 @@ const kb = (bytes: number | undefined) => `${((bytes ?? 0) / 1024).toFixed(1)} k
 export default function Page() {
   return (
     <main>
-      <h1>turbopack-imagetools</h1>
+      <h1>next-imagetools</h1>
       <p className="lead">
         Every image on this page was generated at build time from an import. Open DevTools → Network
         to see the static files under <code>/_next/static/media</code>.

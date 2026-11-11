@@ -1,4 +1,4 @@
-# Contributing to turbopack-imagetools
+# Contributing to next-imagetools
 
 Thanks for your interest! Contributions of all kinds are welcome — bug reports, fixes, directives, docs and ideas. Everyone taking part is expected to follow the [Code of Conduct](./CODE_OF_CONDUCT.md).
 
@@ -6,7 +6,7 @@ This guide covers the **contribution process**. For the **technical deep-dive** 
 
 ## Ways to contribute
 
-- **Report a bug** — open an [issue](https://github.com/awdr74100/turbopack-imagetools/issues) with a reproduction. Say whether it still happens after deleting `.next` and `node_modules/.cache/turbopack-imagetools`; caching bugs are the most common kind here.
+- **Report a bug** — open an [issue](https://github.com/awdr74100/next-imagetools/issues) with a reproduction. Say whether it still happens after deleting `.next` and `node_modules/.cache/next-imagetools`; caching bugs are the most common kind here.
 - **Request a feature** — describe the problem you're trying to solve, not just the solution.
 - **Send a pull request** — for anything non-trivial, please open an issue first so we can agree on the approach before you invest time.
 
@@ -18,8 +18,8 @@ This guide covers the **contribution process**. For the **technical deep-dive** 
 ## Getting started
 
 ```bash
-git clone https://github.com/awdr74100/turbopack-imagetools.git
-cd turbopack-imagetools
+git clone https://github.com/awdr74100/next-imagetools.git
+cd next-imagetools
 pnpm install
 pnpm exec playwright install chromium
 pnpm build
@@ -36,7 +36,7 @@ It builds the package and starts `next dev` in `playground/`. Rebuild the packag
 
 ## Repository layout
 
-- `packages/turbopack-imagetools` — the published package
+- the repo root — the published package: `src`, `client.d.ts` and `package.json`
 - `playground` — a Next.js app for trying things by hand
 - `test` — unit tests, which call the built loaders directly (seconds)
 - `test/e2e` — end-to-end tests with real Next.js builds, servers and Chromium (minutes); `test/e2e/fixtures/next-app` is the app they build, start and inspect. It is not meant for browsing: the suites rewrite its source image and switch its routes between modes.
@@ -51,7 +51,7 @@ pnpm build && pnpm check && pnpm test
 
 While iterating, `pnpm test:unit` runs only the unit tests and finishes in seconds; `pnpm test:e2e` runs only the end-to-end tests.
 
-- **Tests run against the built package.** Both suites, and the fixture app in `test/e2e/fixtures/next-app`, consume `packages/turbopack-imagetools/dist`, the way users do, so run `pnpm build` after changing the package. The suites refuse to run without a build.
+- **Tests run against the built package.** Both suites, and the fixture app in `test/e2e/fixtures/next-app`, consume `dist`, the way users do, so run `pnpm build` after changing the package. The suites refuse to run without a build.
 - **Test the cache states, not just the happy path.** A change to the loaders should hold up cold, warm, with only `.next` or only the imagetools cache cleared, after the source image is edited, and across a `next dev` restart. `test/e2e/build.test.ts` and `test/e2e/dev.test.ts` walk through those states; extend them rather than adding a one-off check.
 - **No git hooks.** Formatting and lint are enforced by CI, so run `pnpm format` before committing.
 - **English only** in code, comments, docs and fixture copy (`pnpm lint:english`).

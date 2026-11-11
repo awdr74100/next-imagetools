@@ -12,7 +12,7 @@ import {
   checkMarker,
   closest,
   dropEmptyValues,
-} from '../packages/turbopack-imagetools/src/directives';
+} from '../src/directives';
 
 const check = (
   query: string,
@@ -156,6 +156,11 @@ describe('checkMarker', () => {
   it('rejects a marker on an output that types without one, or has no marker type', () => {
     expect(checkMarker('?w=400&as=img&imagetools', 'img', 1)).toBe(
       'as=img is typed without a marker; remove &imagetools.',
+    );
+    // the `as` came from a preset: removing the marker alone wouldn't type it
+    expect(checkMarker('?preset=hero&imagetools', 'picture', 1)).toBe(
+      'as=picture comes from a preset or the defaults, so no marker can type this import; ' +
+        "remove &imagetools and declare its type, e.g. declare module '*preset=<name>'.",
     );
     expect(checkMarker('?as=metadata:width;height&imagetools', 'metadata:width;height', 1)).toMatch(
       /^as=metadata:width;height has no marker type/,

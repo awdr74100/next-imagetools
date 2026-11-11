@@ -65,11 +65,16 @@ const MARKED_OUTPUTS = new Set(['url', 'metadata', 'meta']);
  * `string` for what is really an array — with nothing else to say so.
  */
 export function checkMarker(query: string, as: string | null, count: number): string | undefined {
-  const last = [...new URLSearchParams(query).keys()].at(-1);
+  const params = new URLSearchParams(query);
+  const last = [...params.keys()].at(-1);
   if (last !== 'imagetools' && last !== 'imagetools-gallery') return undefined;
   const [output = 'url', keys] = (as ?? 'url').split(':');
   if (!MARKED_OUTPUTS.has(output)) {
-    return `as=${output} is typed without a marker; remove &${last}.`;
+    // from a preset or the defaults, the `as` isn't in the query for the client types to see
+    return params.has('as')
+      ? `as=${output} is typed without a marker; remove &${last}.`
+      : `as=${output} comes from a preset or the defaults, so no marker can type this import; ` +
+          `remove &${last} and declare its type, e.g. declare module '*preset=<name>'.`;
   }
   if (keys !== undefined) {
     return (

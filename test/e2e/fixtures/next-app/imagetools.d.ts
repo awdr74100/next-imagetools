@@ -1,4 +1,4 @@
-/// <reference types="turbopack-imagetools/client" />
+/// <reference types="next-imagetools/client" />
 
 // the fixture's custom output format (see imagetools.config.mjs)
 declare module '*as=dims' {

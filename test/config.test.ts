@@ -5,7 +5,7 @@ import path from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import type * as Package from '../packages/turbopack-imagetools/dist/index.cjs';
+import type * as Package from '../dist/index.cjs';
 
 // `next` is only installed in the package and the fixture, so take its config type from the
 // package's own declarations
@@ -13,14 +13,14 @@ type NextConfig = NonNullable<Parameters<typeof Package.withImagetools>[0]>;
 
 const require = createRequire(import.meta.url);
 const { withImagetools } = require(
-  path.resolve(import.meta.dirname, '../packages/turbopack-imagetools/dist/index.cjs'),
+  path.resolve(import.meta.dirname, '../dist/index.cjs'),
 ) as typeof Package;
 
 type Rule = { loaders?: unknown[]; condition?: unknown; as?: string; type?: string };
 const rulesFor = (config: NextConfig, key: string) =>
   config.turbopack?.rules?.[key] as Rule[] | undefined;
 
-const isOurs = (r: Rule) => JSON.stringify(r.loaders ?? []).includes('turbopack-imagetools/');
+const isOurs = (r: Rule) => JSON.stringify(r.loaders ?? []).includes('next-imagetools/');
 
 describe('withImagetools', () => {
   it('adds rules for every default extension and passes the rest of the config through', () => {
@@ -61,7 +61,7 @@ describe('withImagetools', () => {
     const rules = rulesFor(withImagetools({}), '*.jpg')!;
     const assetRule = (ext: string) =>
       rules.find(r =>
-        String((r.condition as { query?: RegExp }).query).includes(`tpit_ext=${ext}(`),
+        String((r.condition as { query?: RegExp }).query).includes(`nit_ext=${ext}(`),
       );
     expect(assetRule('jpg')?.as).toBeUndefined();
     expect(assetRule('webp')?.as).toBe('*.webp');
@@ -69,7 +69,7 @@ describe('withImagetools', () => {
     const jpegRules = rulesFor(withImagetools({}), '*.jpeg')!;
     expect(
       jpegRules.find(r =>
-        String((r.condition as { query?: RegExp }).query).includes('tpit_ext=jpg('),
+        String((r.condition as { query?: RegExp }).query).includes('nit_ext=jpg('),
       )?.as,
     ).toBe('*.jpg');
   });
@@ -88,13 +88,13 @@ describe('withImagetools', () => {
   });
 
   it('has an asset rule for every output format the directive check accepts', async () => {
-    const { OUTPUT_FORMATS } = await import('../packages/turbopack-imagetools/src/directives');
+    const { OUTPUT_FORMATS } = await import('../src/directives');
     const rules = rulesFor(withImagetools({}), '*.png')!;
     for (const format of OUTPUT_FORMATS) {
       const ext = format === 'jpeg' ? 'jpg' : format;
       expect(
         rules.some(r =>
-          String((r.condition as { query?: RegExp }).query).includes(`tpit_ext=${ext}(`),
+          String((r.condition as { query?: RegExp }).query).includes(`nit_ext=${ext}(`),
         ),
         `asset rule for ${format}`,
       ).toBe(true);

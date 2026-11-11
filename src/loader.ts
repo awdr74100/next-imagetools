@@ -1,7 +1,7 @@
 // imagetools loader for Turbopack.
 //
 // Turbopack has no emitFile, and files written mid-build are not visible to its resolver, so for
-// every generated image the module imports the source again as `<file>?tpit=…&<config>`. That
+// every generated image the module imports the source again as `<file>?nit=…&<config>`. That
 // import is matched by a rule with `type: 'asset'` whose loader (asset-loader.ts) returns the
 // encoded bytes, and Turbopack's own asset pipeline hashes and emits them.
 import { readFile } from 'node:fs/promises';
@@ -37,7 +37,7 @@ import {
   type LoaderOptions,
 } from './shared';
 
-const PLACEHOLDER = (i: number) => `__TPIT_${i}__`;
+const PLACEHOLDER = (i: number) => `__NIT_${i}__`;
 
 // For data URLs; formats not listed fall back to `image/<format>`.
 const MIME_TYPES: Record<string, string> = {
@@ -306,29 +306,26 @@ async function load(this: LoaderContext): Promise<string> {
 
   // JSON is valid JS; splice each placeholder out of its string literal and
   // into a reference to the imported asset URL.
-  const json = JSON.stringify(result).replaceAll(
-    /__TPIT_(\d+)__/g,
-    '" + __tpit_url(__tpit_$1) + "',
-  );
+  const json = JSON.stringify(result).replaceAll(/__NIT_(\d+)__/g, '" + __nit_url(__nit_$1) + "');
   const self = `./${path.basename(pathname)}`;
   // sparse when inlined: an inlined image has no asset to import
   const imports = assetQueries
-    .map((q, i) => (q === undefined ? '' : `import __tpit_${i} from ${JSON.stringify(self + q)};`))
+    .map((q, i) => (q === undefined ? '' : `import __nit_${i} from ${JSON.stringify(self + q)};`))
     .filter(Boolean)
     .join('\n');
 
   const named = options.namedExports === false ? [] : namedExportKeys(result);
   const namedExports = named
-    .map(key => `export const ${key} = __tpit_value[${JSON.stringify(key)}];`)
+    .map(key => `export const ${key} = __nit_value[${JSON.stringify(key)}];`)
     .join('\n');
 
   // Turbopack hands back the emitted path as is, so a source named `my photo.jpg` gives a URL
   // with a space in it — which splits a srcset entry in two. encodeURI escapes spaces and
   // non-ASCII characters and leaves the URL's structure (`https://`, `/`) alone.
   return `${imports}
-const __tpit_url = (m) => encodeURI(m && typeof m === 'object' ? m.src : m);
-const __tpit_value = ${json};
-export default __tpit_value;
+const __nit_url = (m) => encodeURI(m && typeof m === 'object' ? m.src : m);
+const __nit_value = ${json};
+export default __nit_value;
 ${namedExports}
 `;
 }

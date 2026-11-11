@@ -4,32 +4,32 @@ Guidance for anyone — human or agent — working in this repository. Read it b
 
 ## What this is
 
-`turbopack-imagetools` brings [imagetools-core](https://github.com/JonasKruckenberg/imagetools) directives to Next.js with Turbopack: `import hero from './hero.jpg?w=400;800&format=webp&as=srcset'` generates every variant at build time as plain static assets. User-facing behavior is documented in [README.md](./README.md); this file covers how it works and how to work on it.
+`next-imagetools` brings [imagetools-core](https://github.com/JonasKruckenberg/imagetools) directives to Next.js with Turbopack: `import hero from './hero.jpg?w=400;800&format=webp&as=srcset'` generates every variant at build time as plain static assets. User-facing behavior is documented in [README.md](./README.md); this file covers how it works and how to work on it.
 
 ## Layout
 
-- `packages/turbopack-imagetools` — the published package
+- The repo root is the published package (`package.json`, `src`, `client.d.ts`); the playground and the e2e fixture are pnpm workspace members that depend on it.
   - `src/index.ts` — `withImagetools()`, which adds the Turbopack rules to `next.config`. Runs when the config loads, so it must not import anything heavy at runtime (`shared.ts` pulls in sharp).
   - `src/loader.ts` — the **module loader**: resolves directives, processes variants, returns a JS module.
   - `src/asset-loader.ts` — the **asset loader**: returns the encoded bytes of one variant.
   - `src/directives.ts` — directive checks: known names, value rules, typo suggestions.
   - `src/shared.ts` — processing, the disk cache, cache keys, config-file loading. Bundled into one chunk shared by both loaders, so its in-process memo is shared too.
-  - `src/config.ts` / `src/core.ts` — the `turbopack-imagetools/config` and `/core` entries for config files.
-  - `client.d.ts` — ambient module types (`turbopack-imagetools/client`).
+  - `src/config.ts` / `src/core.ts` — the `next-imagetools/config` and `/core` entries for config files.
+  - `client.d.ts` — ambient module types (`next-imagetools/client`).
 - `playground` — a Next.js app for trying things by hand (`pnpm playground`).
 - `test` — the unit suites (`*.test.ts`), which call the built loaders and `withImagetools()` directly.
 - `test/e2e` — the end-to-end suites. `test/e2e/fixtures/next-app` is the app they build, start and inspect; the suites rewrite its source image and switch its routes between modes, so don't treat it as a demo.
-- `scripts` — release, English-only check, prepack doc copy.
+- `scripts` — release, English-only check, pinning the oldest supported Next.js for CI.
 
 ## How it works
 
 Turbopack runs webpack-style loaders, but its loader API has **no `emitFile`**, and **files written during a build are invisible to its resolver** (a cold build fails to resolve them; the second build passes — don't be fooled). So the loaders never write output files:
 
 1. An import with a query matches the module rule and runs `loader.ts`. It resolves directives (defaults → config-file defaults → preset → query), clamps sizes to the source, expands them with imagetools-core, processes each variant through `processImage` (disk-cached), and runs the output format.
-2. The returned module imports each variant **back from the source file** with an internal query: `./hero.jpg?tpit=<source hash>&tpit_ext=webp&<config>`.
-3. A per-format asset rule matches `tpit_ext=<ext>`, sets `type: 'asset'`, and runs `asset-loader.ts`, which returns the bytes. Turbopack's own asset pipeline hashes and emits the file and gives the module its URL.
+2. The returned module imports each variant **back from the source file** with an internal query: `./hero.jpg?nit=<source hash>&nit_ext=webp&<config>`.
+3. A per-format asset rule matches `nit_ext=<ext>`, sets `type: 'asset'`, and runs `asset-loader.ts`, which returns the bytes. Turbopack's own asset pipeline hashes and emits the file and gives the module its URL.
 
-Placeholders (`__TPIT_<i>__`) stand in for URLs while the output format runs, and are spliced out of the JSON into references to the imported assets.
+Placeholders (`__NIT_<i>__`) stand in for URLs while the output format runs, and are spliced out of the JSON into references to the imported assets.
 
 ## Gotchas
 
@@ -59,7 +59,7 @@ pnpm test                  # every suite; needs `pnpm build` first
 pnpm playground            # build + next dev in playground/
 ```
 
-`pnpm test:unit` runs the unit project (seconds, no Next.js); `pnpm test:e2e` the e2e project (`build`, `dev`, `modes`, `playground`), which drives real Next.js builds, servers and Chromium — minutes, and a fair amount of memory. Run one file with `pnpm vitest run <path>`.
+`pnpm test:unit` runs the unit project (seconds, no Next.js); `pnpm test:e2e` the e2e project (`build`, `deploy`, `dev`, `modes`, `playground`), which drives real Next.js builds, servers and Chromium — minutes, and a fair amount of memory. Run one file with `pnpm vitest run <path>`.
 
 ## Testing
 

@@ -60,10 +60,7 @@
       }
     },
     {
-      "files": [
-        "packages/turbopack-imagetools/src/loader.ts",
-        "packages/turbopack-imagetools/src/asset-loader.ts"
-      ],
+      "files": ["src/loader.ts", "src/asset-loader.ts"],
       "rules": {
         "oxc/no-this-in-exported-function": "off"
       }

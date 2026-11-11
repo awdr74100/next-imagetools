@@ -1,7 +1,7 @@
 import './styles.css';
 
 export const metadata = {
-  title: 'turbopack-imagetools playground',
+  title: 'next-imagetools playground',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

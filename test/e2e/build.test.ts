@@ -80,7 +80,7 @@ describe('next build (Turbopack)', { concurrent: false }, () => {
   // file that was never emitted (what vite-imagetools 9.0.2 did when it re-encoded cache hits).
   it('disk cache off: every image encoded again, same URLs as the cold build', async () => {
     clean({ next: true, imagetools: true });
-    const urls = (await buildAndVerify(BLUE, { TPIT_NO_CACHE: '1' })).map(i => i.url);
+    const urls = (await buildAndVerify(BLUE, { NIT_NO_CACHE: '1' })).map(i => i.url);
     expect(urls).toEqual(coldUrls);
     expect(existsSync(IMAGETOOLS_CACHE) ? readdirSync(IMAGETOOLS_CACHE) : []).toEqual([]);
   });

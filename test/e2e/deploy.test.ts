@@ -41,7 +41,7 @@ describe('deployment shapes', { concurrent: false }, () => {
 
   it('basePath: pages and images live under the sub-path', async () => {
     clean({ next: true });
-    const extraEnv = { TPIT_BASE_PATH: '/docs' };
+    const extraEnv = { NIT_BASE_PATH: '/docs' };
     build({ extraEnv });
     server = await startServer('start', PORT, undefined, { readyPath: '/docs', extraEnv });
     await verifyPage(server.base, BLUE, '/docs');
@@ -51,7 +51,7 @@ describe('deployment shapes', { concurrent: false }, () => {
 
   it('assetPrefix: image URLs carry the prefix, like Next.js’ own assets', async () => {
     clean({ next: true });
-    const extraEnv = { TPIT_ASSET_PREFIX: '/cdn' };
+    const extraEnv = { NIT_ASSET_PREFIX: '/cdn' };
     build({ extraEnv });
     server = await startServer('start', PORT, undefined, { extraEnv });
     const html = await (await fetch(`${server.base}/`)).text();
@@ -64,7 +64,7 @@ describe('deployment shapes', { concurrent: false }, () => {
 
   it('output: standalone serves every image from the documented .next/static copy', async () => {
     clean({ next: true });
-    build({ extraEnv: { TPIT_STANDALONE: '1' } });
+    build({ extraEnv: { NIT_STANDALONE: '1' } });
     server = await startStandalone(PORT);
     await verifyPage(server.base, BLUE);
   });

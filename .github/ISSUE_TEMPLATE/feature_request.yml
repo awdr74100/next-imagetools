@@ -36,5 +36,5 @@ body:
     attributes:
       label: Validations
       options:
-        - label: Check that there isn't [already an issue](https://github.com/awdr74100/turbopack-imagetools/issues?q=is%3Aissue) that requests the same feature to avoid creating a duplicate.
+        - label: Check that there isn't [already an issue](https://github.com/awdr74100/next-imagetools/issues?q=is%3Aissue) that requests the same feature to avoid creating a duplicate.
           required: true
