@@ -210,20 +210,26 @@ if (version === current) fail(`already on ${current}`);
 const tag = `v${version}`;
 if (git('tag', '--list', tag)) fail(`tag ${tag} already exists`);
 
-// Same command this script replaced; --no-github because the GitHub Release is
-// created by .github/workflows/release.yml once the tag is pushed.
-const args = ['exec', 'changelogen', '--release', '-r', version, '--no-github'];
+// --no-github because the GitHub Release is created by .github/workflows/release.yml once the
+// tag is pushed. changelogen's CLI runs on this Node.js rather than through `pnpm exec`: on
+// Windows, pnpm is a .cmd shim that spawn can't start without a shell.
+const args = ['--release', '-r', version, '--no-github'];
+const changelogen = join(repoRoot, 'node_modules', 'changelogen', 'dist', 'cli.mjs');
 
 console.log();
-console.log(`  ${styleText('dim', `pnpm ${args.join(' ')}`)}`);
+console.log(`  ${styleText('dim', `changelogen ${args.join(' ')}`)}`);
 console.log(`  commits and tags ${styleText('bold', tag)} locally — nothing is published yet.`);
 console.log();
 
 const confirmed = await ask(`  Continue? ${styleText('dim', '(y/N)')} `);
 if (!/^y(es)?$/i.test(confirmed)) abort();
 
-const { status } = spawnSync('pnpm', args, { cwd: repoRoot, stdio: 'inherit' });
-if (status !== 0) process.exit(status ?? 1);
+const run = spawnSync(process.execPath, [changelogen, ...args], {
+  cwd: repoRoot,
+  stdio: 'inherit',
+});
+if (run.error) fail(`changelogen could not start: ${run.error.message}`);
+if (run.status !== 0) fail(`changelogen failed (exit ${run.status ?? run.signal})`);
 
 // The push is the irreversible half: the tag landing on GitHub starts
 // release.yml, which publishes to npm — and npm forbids reusing a version even
