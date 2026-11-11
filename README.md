@@ -55,7 +55,7 @@ pnpm add next-imagetools
 # or: npm install next-imagetools / yarn add next-imagetools
 ```
 
-**Requirements:** Next.js 16.2 or newer with Turbopack (the default bundler), and Node.js 22.12 or newer. Support for webpack (`next build --webpack`) is planned for the next release ([#23](https://github.com/awdr74100/next-imagetools/issues/23)).
+**Requirements:** Next.js 16.2 or newer and Node.js 22.12 or newer. Next.js builds with Turbopack by default; projects that opt into webpack (`next dev --webpack`, `next build --webpack`) aren't supported yet — support is planned for the next release ([#23](https://github.com/awdr74100/next-imagetools/issues/23)).
 
 Wrap your Next.js config with `withImagetools`:
 
