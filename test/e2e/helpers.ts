@@ -480,7 +480,7 @@ export async function verifyInBrowser(browser: Browser, base: string, route: str
     expect(firstStyle, `${route}: next/image starts with the as=next blur placeholder`).toMatch(
       /background-image:\s*url\("?data:image\/svg\+xml/,
     );
-    await page.locator('button', { hasText: 'show' }).click();
+    await page.locator('button[data-hydrated]', { hasText: 'show' }).click();
     await page.locator('#hidden').waitFor();
     const broken = await page.evaluate(async () => {
       const imgs = [...document.images];
