@@ -1,5 +1,5 @@
 // withImagetools() only rewrites next.config, so it is tested as a plain function on the built
-// package. What Turbopack then does with the rules is covered by the build/dev/mode suites.
+// package. What the bundlers then do with the rules is covered by the build/dev/mode suites.
 import { createRequire } from 'node:module';
 import path from 'node:path';
 

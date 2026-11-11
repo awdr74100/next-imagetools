@@ -260,7 +260,7 @@ const loadedConfigs = new Map<string, Promise<LoadedConfig>>();
 /**
  * Imports the `configFile` module, if any. Three caches could otherwise serve an outdated config:
  *
- * - Turbopack, which reruns a loader only when its inputs change: the file is registered as a
+ * - The bundler, which reruns a loader only when its inputs change: the file is registered as a
  *   dependency of every module that uses it.
  * - Node's module cache, which returns the first import forever: the file is imported with its
  *   content hash in the URL, so an edit loads a new module.

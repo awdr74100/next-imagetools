@@ -13,9 +13,9 @@ export default defineConfig([
     fixedExtension: true,
     publint: true,
   },
-  // Turbopack loads loaders by path through loader-runner, which reads `default` and `raw` off
-  // a CommonJS module. Both entries share one build so `shared.ts` (and its in-process memo of
-  // running transforms) is a single chunk rather than a copy per loader.
+  // Turbopack and webpack load loaders by path through loader-runner, which reads `default`,
+  // `raw` and `pitch` off a CommonJS module. Both entries share one build so `shared.ts` (and its
+  // in-process memo of running transforms) is a single chunk rather than a copy per loader.
   {
     entry: { loader: 'src/loader.ts', 'asset-loader': 'src/asset-loader.ts' },
     format: 'cjs',

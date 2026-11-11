@@ -43,7 +43,7 @@ jobs:
       - run: pnpm format:check
       - run: pnpm knip
 
-  # Turbopack's file watching, persistent caches and the loaders' cache writes all go through the
+  # The bundlers' file watching, persistent caches and the loaders' cache writes all go through the
   # filesystem, which is exactly what differs across platforms: concurrent renames into the cache
   # failed with EPERM only on Windows, and macOS's filesystem is case-insensitive by default. So
   # every suite runs on all three. Each bundler is a job of its own (NIT_BUNDLER), so supporting
