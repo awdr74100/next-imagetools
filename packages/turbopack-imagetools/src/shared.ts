@@ -10,6 +10,7 @@ import {
   generateTransforms,
   type AppliedTransforms,
   type ImageConfig,
+  type ImageTransformation,
   type Logger,
   type TransformFactory,
 } from 'imagetools-core';
@@ -210,7 +211,15 @@ async function run(id: string, args: ProcessArgs): Promise<ProcessedResult> {
       args.searchParams,
       args.logger,
     );
-    const res = await applyTransforms(steps, sharp(args.source), args.removeMetadata);
+    // sharp reads only the first frame unless told otherwise; keep every frame when the output
+    // can hold them
+    const animation = await animationOf(args.source, args.config);
+    const input = sharp(args.source, { animated: animation.kept });
+    const res = await applyTransforms(
+      animation.kept ? [frameSize(animation.frameHeight), ...steps] : steps,
+      input,
+      args.removeMetadata,
+    );
     data = (await res.image.toBuffer({ resolveWithObject: true })).data;
     transforms = res.metadata.transforms;
     if (file !== undefined) await writeCache(file, data);
@@ -297,3 +306,34 @@ export function warn(ctx: LoaderContext, message: string): void {
   warning.stack = `${warning.name}: ${warning.message}`;
   ctx.emitWarning?.(warning);
 }
+
+/** Output formats sharp can encode with several frames. */
+export const ANIMATED_FORMATS = new Set(['gif', 'webp']);
+
+/**
+ * Whether an image keeps its animation — an animated source, and an output that can hold the frames
+ * — and the height of one frame.
+ */
+async function animationOf(
+  source: Buffer,
+  config: ImageConfig,
+): Promise<{ kept: boolean; frameHeight: number }> {
+  // read without `animated`, so `height` is one frame's
+  const meta = await sharp(source).metadata();
+  const format = config['format'] ?? meta.format;
+  const kept = (meta.pages ?? 1) > 1 && format !== undefined && ANIMATED_FORMATS.has(format);
+  return { kept, frameHeight: meta.height };
+}
+
+/**
+ * An animated image is read as one tall strip of frames, so the pipeline would start from the
+ * strip's height and resize every frame to the wrong aspect ratio. This first step puts one frame's
+ * height in place; sharp then applies the resize to each frame.
+ */
+const frameSize =
+  (frameHeight: number): ImageTransformation =>
+  (state, image) => {
+    state.info.height = frameHeight;
+    state.info.autoOriented.height = frameHeight;
+    return image;
+  };

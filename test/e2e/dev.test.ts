@@ -1,8 +1,9 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  ACCENTED,
   BLUE,
   CONFIG_FILE,
   RED,
@@ -61,6 +62,25 @@ describe.sequential('next dev (Turbopack)', () => {
     await writeHero(RED);
     await waitFor(() => verifyPage(server!.base, RED));
     expect(server!.log()).not.toMatch(/EPERM|ENOENT/);
+  });
+
+  // vite-imagetools keeps a map of generated images in memory, so deleting a source in dev leaves
+  // it serving hashes that no longer exist until the server restarts. Here a deleted source must
+  // surface as a plain module error, and putting it back must recover without a restart.
+  it('a source deleted while running is a module error, and putting it back recovers', async () => {
+    const original = readFileSync(ACCENTED);
+    rmSync(ACCENTED);
+    try {
+      await waitFor(async () => {
+        const res = await fetch(server!.base + '/');
+        expect(res.status, 'the page fails while its source is missing').toBe(500);
+        expect(await res.text()).toMatch(/Module not found|Can't resolve|ENOENT/);
+      });
+    } finally {
+      writeFileSync(ACCENTED, original);
+    }
+    await waitFor(() => verifyPage(server!.base, RED));
+    expect(server!.log(), 'no stale cache entries are served').not.toMatch(/EPERM/);
   });
 
   it('editing the config file while running updates the imports that use it', async () => {

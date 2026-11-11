@@ -1,5 +1,5 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
-import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { connect } from 'node:net';
 import path from 'node:path';
@@ -14,6 +14,11 @@ const DIST = path.resolve(import.meta.dirname, '../../packages/turbopack-imageto
 export const PLAYGROUND = path.resolve(import.meta.dirname, '../../playground');
 const nextBin = (root: string) => path.join(root, 'node_modules/next/dist/bin/next');
 export const HERO = path.join(ROOT, 'images/hero.jpg');
+// Copies of the source under names that need URL encoding (a space, parentheses, non-ASCII), so
+// every mode also checks that the generated URLs survive in src and srcset.
+const HERO_COPIES = ['my photo (1).jpg', 'café.jpg'].map(name => path.join(ROOT, 'images', name));
+/** Imported by a single import of the fixture, so the dev suite can delete it and put it back. */
+export const ACCENTED = HERO_COPIES[1]!;
 const env = { ...process.env, NEXT_TELEMETRY_DISABLED: '1' };
 
 // Fail loudly rather than test a stale or missing build.
@@ -33,7 +38,7 @@ export async function writeHero(background: RGB) {
     .composite([{ input: Buffer.from(svg) }])
     .jpeg()
     .toBuffer();
-  writeFileSync(HERO, buf);
+  for (const file of [HERO, ...HERO_COPIES]) writeFileSync(file, buf);
 }
 
 export function clean({ next = false, imagetools = false }) {
@@ -48,10 +53,14 @@ export function clean({ next = false, imagetools = false }) {
     });
 }
 
-export function build({ exportMode = false, root = ROOT } = {}) {
+export function build({
+  exportMode = false,
+  root = ROOT,
+  extraEnv = {},
+}: { exportMode?: boolean; root?: string; extraEnv?: Record<string, string> } = {}) {
   const res = spawnSync(process.execPath, [nextBin(root), 'build'], {
     cwd: root,
-    env: { ...env, TPIT_EXPORT: exportMode ? '1' : '' },
+    env: { ...env, TPIT_EXPORT: exportMode ? '1' : '', ...extraEnv },
     encoding: 'utf8',
   });
   if (res.status !== 0) throw new Error(`next build failed:\n${res.stdout}\n${res.stderr}`);
@@ -149,29 +158,73 @@ export function logServerOnFailure(getServer: () => { log: () => string } | unde
   });
 }
 
-export async function startServer(mode: 'start' | 'dev', port: number, root = ROOT) {
+export function startServer(
+  mode: 'start' | 'dev',
+  port: number,
+  root = ROOT,
+  // `next start` loads next.config again, so it needs the env the build was configured with
+  {
+    readyPath = '/',
+    extraEnv = {},
+  }: { readyPath?: string; extraEnv?: Record<string, string> } = {},
+) {
+  return startProcess([nextBin(root), mode, '-p', String(port)], {
+    cwd: root,
+    port,
+    name: `next ${mode}`,
+    readyPath,
+    extraEnv,
+  });
+}
+
+/**
+ * Starts the server of an `output: 'standalone'` build the way Next.js documents deploying it:
+ * `.next/static` — where the generated images live — copied next to `server.js`.
+ */
+export function startStandalone(port: number) {
+  // in a workspace, the server sits at the app's path relative to the workspace root
+  const workspaceRoot = path.resolve(ROOT, '../../../..');
+  const serverDir = path.join(ROOT, '.next', 'standalone', path.relative(workspaceRoot, ROOT));
+  cpSync(path.join(ROOT, '.next', 'static'), path.join(serverDir, '.next', 'static'), {
+    recursive: true,
+  });
+  return startProcess([path.join(serverDir, 'server.js')], {
+    cwd: serverDir,
+    port,
+    name: 'standalone server',
+    extraEnv: { PORT: String(port), HOSTNAME: 'localhost' },
+  });
+}
+
+async function startProcess(
+  args: string[],
+  options: {
+    cwd: string;
+    port: number;
+    name: string;
+    readyPath?: string;
+    extraEnv?: Record<string, string>;
+  },
+) {
+  const { cwd, port, name, readyPath = '/', extraEnv = {} } = options;
   if (await isListening(port)) {
     throw new Error(`port ${port} is already in use: a previous server did not shut down`);
   }
-  const child = spawn(process.execPath, [nextBin(root), mode, '-p', String(port)], {
-    cwd: root,
-    env,
-    stdio: 'pipe',
-  });
+  const child = spawn(process.execPath, args, { cwd, env: { ...env, ...extraEnv }, stdio: 'pipe' });
   let log = '';
   child.stdout!.on('data', d => (log += d));
   child.stderr!.on('data', d => (log += d));
   const base = `http://localhost:${port}`;
   const deadline = Date.now() + 120_000;
   for (;;) {
-    if (child.exitCode !== null) throw new Error(`next ${mode} exited:\n${log}`);
+    if (child.exitCode !== null) throw new Error(`${name} exited:\n${log}`);
     try {
-      const res = await fetch(base + '/');
+      const res = await fetch(base + readyPath);
       if (res.ok) break;
     } catch {}
     if (Date.now() > deadline) {
       kill(child);
-      throw new Error(`next ${mode} did not become ready:\n${log}`);
+      throw new Error(`${name} did not become ready:\n${log}`);
     }
     await new Promise(r => setTimeout(r, 500));
   }
@@ -223,6 +276,8 @@ function expectedImages(html: string): Expected[] {
     { label: 'clamped 1/2', url: data.heroClamped[0], width: 1600, format: 'webp' },
     { label: 'clamped 2/2', url: data.heroClamped[1], width: 1600, format: 'webp' },
     { label: 'preset=thumb', url: data.heroThumb, width: 120, format: 'webp' },
+    { label: 'accented file name', url: data.accented, width: 40, format: 'webp' },
+    ...fromSrcset('spaced file name srcset', data.spacedSrcset, 'webp'),
     // fetch() decodes data: URLs too, so an inlined image goes through the same checks
     { label: 'inline', url: data.heroInline, width: 24, format: 'webp' },
     ...fromSrcset('srcset', data.heroSrcset, 'webp'),
@@ -248,6 +303,10 @@ function expectedImages(html: string): Expected[] {
     height: 48,
     src: expect.stringMatching(/\/photo\.[\w-]+\.jpg$/),
   });
+  // spaces and non-ASCII are percent-encoded, so a URL is one srcset token
+  expect(data.accented, 'non-ASCII file name').toMatch(/\/caf%C3%A9\.jpg\.[\w-]+\.webp$/);
+  expect(parseSrcset(data.spacedSrcset).map(s => s.width)).toEqual([40, 80]);
+  expect(data.spacedSrcset).toMatch(/\/my%20photo%20\(1\)\.jpg\./);
   expect(data.heroInline, 'inline gives a data URL').toMatch(/^data:image\/webp;base64,/);
   expect(data.heroDims, 'custom output format from the config file').toEqual([
     { w: 100 },
@@ -275,10 +334,19 @@ export async function verifyPage(base: string, color: RGB, route = '/') {
   return verifyHtml(base, await res.text(), color);
 }
 
-export async function verifyHtml(base: string, html: string, color: RGB) {
+/**
+ * `toServerUrl` maps an image URL to where the test server has it, for deployments that put assets
+ * elsewhere (an `assetPrefix` pointing at a CDN).
+ */
+export async function verifyHtml(
+  base: string,
+  html: string,
+  color: RGB,
+  toServerUrl: (url: string) => string = url => url,
+) {
   const images = expectedImages(html);
   for (const img of images) {
-    const res = await fetch(new URL(img.url, base));
+    const res = await fetch(new URL(toServerUrl(img.url), base));
     expect(res.status, `${img.label} ${img.url}`).toBe(200);
     expect(res.headers.get('content-type'), `${img.label} content-type`).toContain(
       CONTENT_TYPE[img.format],

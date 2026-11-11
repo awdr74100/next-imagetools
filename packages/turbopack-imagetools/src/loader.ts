@@ -22,6 +22,7 @@ import sharp, { type Metadata } from 'sharp';
 
 import { checkDirectives, dropEmptyValues } from './directives';
 import {
+  ANIMATED_FORMATS,
   MARKER,
   prepareCache,
   hash,
@@ -187,8 +188,8 @@ async function load(this: LoaderContext): Promise<string> {
   const sourceHash = hash([source]);
 
   // clamp w/h to the intrinsic size unless allowUpscale
+  const meta = await sharp(source).metadata();
   if (directives.get('allowUpscale') !== 'true' && (directives.has('w') || directives.has('h'))) {
-    const meta = await sharp(source).metadata();
     for (const [key, intrinsic] of [
       ['w', meta.width],
       ['h', meta.height],
@@ -208,6 +209,21 @@ async function load(this: LoaderContext): Promise<string> {
   }
 
   const entries = extractEntries(directives);
+  // An animated source converted to a format without frames keeps only the first one; say so,
+  // rather than leaving a still image to be discovered in the browser.
+  const frames = meta.pages ?? 1;
+  if (frames > 1) {
+    const stills = (directives.get('format') ?? meta.format ?? '')
+      .split(';')
+      .filter(format => format && !ANIMATED_FORMATS.has(format));
+    if (stills.length) {
+      warn(
+        this,
+        `the source has ${frames} frames, but ${stills.join(', ')} can't be animated, so only the ` +
+          `first frame is kept. Use format=webp or format=gif to keep the animation.`,
+      );
+    }
+  }
   const configs =
     userConfig.resolveConfigs?.(entries, outputFormats) ?? resolveConfigs(entries, outputFormats);
   const logger: Logger = {
@@ -280,8 +296,11 @@ async function load(this: LoaderContext): Promise<string> {
     .map(key => `export const ${key} = __tpit_value[${JSON.stringify(key)}];`)
     .join('\n');
 
+  // Turbopack hands back the emitted path as is, so a source named `my photo.jpg` gives a URL
+  // with a space in it — which splits a srcset entry in two. encodeURI escapes spaces and
+  // non-ASCII characters and leaves the URL's structure (`https://`, `/`) alone.
   return `${imports}
-const __tpit_url = (m) => (m && typeof m === 'object' ? m.src : m);
+const __tpit_url = (m) => encodeURI(m && typeof m === 'object' ? m.src : m);
 const __tpit_value = ${json};
 export default __tpit_value;
 ${namedExports}

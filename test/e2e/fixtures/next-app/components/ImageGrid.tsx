@@ -1,5 +1,7 @@
 import Image from 'next/image';
 
+// file names that need URL encoding: a space would split a srcset entry in two
+import accented from '../images/café.jpg?w=40&format=webp&imagetools';
 import heroUrl from '../images/hero.jpg?w=400&format=webp&imagetools';
 import heroGallery from '../images/hero.jpg?w=300;600&format=webp&imagetools-gallery';
 // the source is 1600px wide: 3000 clamps to 1600, and the import must still be an array of two
@@ -15,6 +17,7 @@ import heroMeta, {
   width as namedWidth,
 } from '../images/hero.jpg?w=500&format=webp&as=metadata&imagetools';
 import plain from '../images/hero.jpg';
+import spacedSrcset from '../images/my photo (1).jpg?w=40;80&format=webp&as=srcset';
 // excluded in next.config.ts: the query is ignored and Next.js returns its usual StaticImageData
 import excluded from '../images/raw/photo.jpg?w=10&format=webp&imagetools';
 import Hidden from './hidden';
@@ -57,6 +60,10 @@ export default function ImageGrid({ mode }: { mode: string }) {
       <h2>plain import (Next default)</h2>
       <Image src={plain} width={200} alt="" unoptimized />
 
+      <h2>file names that need encoding</h2>
+      <img id="accented" src={accented} alt="" />
+      <img id="spaced" srcSet={spacedSrcset} sizes="40px" alt="" />
+
       <h2>client-only (rendered after a click)</h2>
       <Hidden />
 
@@ -71,6 +78,8 @@ export default function ImageGrid({ mode }: { mode: string }) {
             heroThumb,
             heroInline,
             heroDims,
+            accented,
+            spacedSrcset,
             excluded,
             named: { src: namedSrc, width: namedWidth },
             heroSrcset,
