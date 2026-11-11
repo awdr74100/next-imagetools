@@ -1,4 +1,4 @@
-import './styles.css';
+import '@/app/styles.css';
 
 export const metadata = {
   title: 'next-imagetools playground',

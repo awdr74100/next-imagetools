@@ -1,19 +1,19 @@
 import Image from 'next/image';
 
-import { PlaceholderDemo } from '../components/placeholder-demo';
-import { Zoom } from '../components/zoom';
-import badgeAvif from '../images/badge.png?w=200&format=avif&imagetools';
-import badgeWebp from '../images/badge.png?w=200&format=webp&imagetools';
-import sizes from '../images/landscape.jpg?w=1200&format=avif;webp;jpg&as=metadata&imagetools-gallery';
-import hero from '../images/landscape.jpg?w=1200&format=webp&as=metadata&imagetools';
-import picture from '../images/landscape.jpg?w=480;960;1440&format=avif;webp;jpg&as=picture';
-import srcset from '../images/landscape.jpg?w=480;960;1440&format=webp&as=srcset';
-import blurred from '../images/portrait.jpg?w=200&blur=12&format=webp&imagetools';
-import cropBottom from '../images/portrait.jpg?w=200&h=200&fit=cover&position=bottom&format=webp&imagetools';
-import cropAttention from '../images/portrait.jpg?w=200&h=200&fit=cover&position=attention&format=webp&imagetools';
-import cropTop from '../images/portrait.jpg?w=200&h=200&fit=cover&position=top&format=webp&imagetools';
-import gray from '../images/portrait.jpg?w=200&grayscale&format=webp&imagetools';
-import rotated from '../images/portrait.jpg?w=200&rotate=90&format=webp&imagetools';
+import { PlaceholderDemo } from '@/components/placeholder-demo';
+import { Zoom } from '@/components/zoom';
+import badgeAvif from '@/images/badge.png?w=200&format=avif&imagetools';
+import badgeWebp from '@/images/badge.png?w=200&format=webp&imagetools';
+import sizes from '@/images/landscape.jpg?w=1200&format=avif;webp;jpg&as=metadata&imagetools-gallery';
+import hero from '@/images/landscape.jpg?w=1200&format=webp&as=metadata&imagetools';
+import picture from '@/images/landscape.jpg?w=480;960;1440&format=avif;webp;jpg&as=picture';
+import srcset from '@/images/landscape.jpg?w=480;960;1440&format=webp&as=srcset';
+import blurred from '@/images/portrait.jpg?w=200&blur=12&format=webp&imagetools';
+import cropBottom from '@/images/portrait.jpg?w=200&h=200&fit=cover&position=bottom&format=webp&imagetools';
+import cropAttention from '@/images/portrait.jpg?w=200&h=200&fit=cover&position=attention&format=webp&imagetools';
+import cropTop from '@/images/portrait.jpg?w=200&h=200&fit=cover&position=top&format=webp&imagetools';
+import gray from '@/images/portrait.jpg?w=200&grayscale&format=webp&imagetools';
+import rotated from '@/images/portrait.jpg?w=200&rotate=90&format=webp&imagetools';
 
 const kb = (bytes: number | undefined) => `${((bytes ?? 0) / 1024).toFixed(1)} kB`;
 
@@ -29,14 +29,14 @@ export default function Page() {
       <section>
         <h2>Responsive srcset</h2>
         <p>Three widths; the browser picks one based on the viewport and screen density.</p>
-        <pre>{`import srcset from './landscape.jpg?w=480;960;1440&format=webp&as=srcset';`}</pre>
+        <pre>{`import srcset from '@/images/landscape.jpg?w=480;960;1440&format=webp&as=srcset';`}</pre>
         <img srcSet={srcset} sizes="(min-width: 960px) 928px, 100vw" alt="Hills at dusk" />
       </section>
 
       <section>
         <h2>&lt;picture&gt; with modern formats</h2>
         <p>AVIF where supported, then WebP, with a JPEG fallback (the last format listed).</p>
-        <pre>{`import picture from './landscape.jpg?w=480;960;1440&format=avif;webp;jpg&as=picture';`}</pre>
+        <pre>{`import picture from '@/images/landscape.jpg?w=480;960;1440&format=avif;webp;jpg&as=picture';`}</pre>
         <picture>
           {Object.entries(picture.sources).map(([format, set]) => (
             <source key={format} type={`image/${format}`} srcSet={set} sizes="928px" />
@@ -53,7 +53,7 @@ export default function Page() {
       <section>
         <h2>File size by format</h2>
         <p>The same 1200px image in each format, from the metadata output.</p>
-        <pre>{`import sizes from './landscape.jpg?w=1200&format=avif;webp;jpg&as=metadata&imagetools-gallery';`}</pre>
+        <pre>{`import sizes from '@/images/landscape.jpg?w=1200&format=avif;webp;jpg&as=metadata&imagetools-gallery';`}</pre>
         <ul className="sizes">
           {sizes.map(image => (
             <li key={image.format}>
@@ -78,7 +78,7 @@ export default function Page() {
           Metadata gives <code>next/image</code> the dimensions it needs. The file is already
           optimized, so <code>unoptimized</code> stops Next.js from re-encoding it.
         </p>
-        <pre>{`import hero from './landscape.jpg?w=1200&format=webp&as=metadata&imagetools';
+        <pre>{`import hero from '@/images/landscape.jpg?w=1200&format=webp&as=metadata&imagetools';
 
 <Image src={hero.src} width={hero.width} height={hero.height} alt="" unoptimized />`}</pre>
         <Image
@@ -95,7 +95,7 @@ export default function Page() {
         <p>
           <code>fit=cover</code> fills the box; <code>position</code> picks which part to keep.
         </p>
-        <pre>{`import cropTop from './portrait.jpg?w=200&h=200&fit=cover&position=top&format=webp';`}</pre>
+        <pre>{`import cropTop from '@/images/portrait.jpg?w=200&h=200&fit=cover&position=top&format=webp';`}</pre>
         <div className="row">
           <figure>
             <img src={cropTop} width={200} height={200} alt="" />
@@ -115,7 +115,7 @@ export default function Page() {
       <section>
         <h2>Transparency</h2>
         <p>The PNG&apos;s alpha channel survives conversion to WebP and AVIF.</p>
-        <pre>{`import badge from './badge.png?w=200&format=avif';`}</pre>
+        <pre>{`import badge from '@/images/badge.png?w=200&format=avif';`}</pre>
         <div className="row">
           <figure>
             <div className="checkerboard">
@@ -135,7 +135,7 @@ export default function Page() {
       <section>
         <h2>Effects</h2>
         <p>Any imagetools directive, applied at build time.</p>
-        <pre>{`import gray from './portrait.jpg?w=200&grayscale&format=webp';`}</pre>
+        <pre>{`import gray from '@/images/portrait.jpg?w=200&grayscale&format=webp';`}</pre>
         <div className="row">
           <figure>
             <img src={gray} width={200} alt="" />

@@ -333,6 +333,7 @@ function expectedImages(html: string): Expected[] {
       tolerance: 60,
     },
     { label: 'accented file name', url: data.accented, width: 40, format: 'webp' },
+    { label: '@/ alias', url: data.aliased, width: 60, format: 'webp' },
     ...fromSrcset('spaced file name srcset', data.spacedSrcset, 'webp'),
     // fetch() decodes data: URLs too, so an inlined image goes through the same checks
     { label: 'inline', url: data.heroInline, width: 24, format: 'webp' },
@@ -354,6 +355,9 @@ function expectedImages(html: string): Expected[] {
   expect(data.heroGallery, '&imagetools-gallery yields an array').toHaveLength(2);
   expect(data.heroClamped, 'values clamped to one size keep the array shape').toHaveLength(2);
   expect(data.heroClamped[0], 'identical variants share one file').toBe(data.heroClamped[1]);
+  expect(data.aliasedExcluded, 'exclude matches an import through the @/ alias').toEqual(
+    data.excluded,
+  );
   expect(data.excluded, 'an excluded import keeps Next.js handling').toMatchObject({
     width: 64,
     height: 48,
