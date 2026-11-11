@@ -24,6 +24,7 @@ import { TYPE_MARKERS, checkDirectives, dropEmptyValues } from './directives';
 import { largest, nextFormat, placeholderKind, placeholderOf } from './placeholder';
 import {
   ANIMATED_FORMATS,
+  isAnimated,
   MARKER,
   prepareCache,
   hash,
@@ -35,7 +36,7 @@ import {
   type LoaderContext,
   type LoaderOptions,
 } from './shared';
-import { declarationsFor, imageCount, writeDeclaration } from './typegen';
+import { declarationsFor, imageCount, isExportName, writeDeclaration } from './typegen';
 
 const PLACEHOLDER = (i: number) => `__TPIT_${i}__`;
 
@@ -225,10 +226,14 @@ async function load(this: LoaderContext): Promise<string> {
 
   // clamp w/h to the intrinsic size unless allowUpscale
   const meta = await sharp(source).metadata();
+  // A photo with an EXIF rotation (most phone portraits) stores its pixels sideways, and
+  // imagetools-core turns it upright before resizing unless noAutoOrient is set — so clamp
+  // against the size it will see, or a portrait's height is capped at its stored width.
+  const upright = directives.has('noAutoOrient') ? meta : meta.autoOrient;
   if (directives.get('allowUpscale') !== 'true' && (directives.has('w') || directives.has('h'))) {
     for (const [key, intrinsic] of [
-      ['w', meta.width],
-      ['h', meta.height],
+      ['w', upright.width],
+      ['h', upright.height],
     ] as const) {
       const before = directives.get(key);
       if (!before) continue;
@@ -247,7 +252,7 @@ async function load(this: LoaderContext): Promise<string> {
   const entries = extractEntries(directives);
   // An animated source converted to a format without frames keeps only the first one; say so,
   // rather than leaving a still image to be discovered in the browser.
-  const frames = meta.pages ?? 1;
+  const frames = isAnimated(meta) ? (meta.pages ?? 1) : 1;
   if (frames > 1) {
     const stills = (directives.get('format') ?? meta.format ?? '')
       .split(';')
@@ -360,16 +365,6 @@ ${namedExports}
 `;
 }
 
-// Reserved words can't be export names; everything else that is a valid identifier can.
-const RESERVED = new Set(
-  (
-    'await break case catch class const continue debugger default delete do else enum export ' +
-    'extends false finally for function if implements import in instanceof interface let new ' +
-    'null package private protected public return static super switch this throw true try ' +
-    'typeof var void while with yield'
-  ).split(' '),
-);
-
 /**
  * Keys of an object result (`as=metadata`, `as=img`, `as=picture`) to also export by name, so
  * `import { width, src } from './a.jpg?as=metadata'` works as it does in vite-imagetools. Arrays
@@ -377,7 +372,7 @@ const RESERVED = new Set(
  */
 function namedExportKeys(result: unknown): string[] {
   if (!result || typeof result !== 'object' || Array.isArray(result)) return [];
-  return Object.keys(result).filter(k => /^[A-Za-z_$][\w$]*$/.test(k) && !RESERVED.has(k));
+  return Object.keys(result).filter(isExportName);
 }
 
 // the source is read from disk by the loader itself, so skip the utf8 decode

@@ -318,6 +318,13 @@ export function warn(ctx: LoaderContext, message: string): void {
 export const ANIMATED_FORMATS = new Set(['gif', 'webp']);
 
 /**
+ * Whether a source is an animation. Several pages alone don't make one: a multi-page TIFF has them
+ * too, and must not turn into an animated WebP. Only animations carry frame delays.
+ */
+export const isAnimated = (meta: Metadata): boolean =>
+  (meta.pages ?? 1) > 1 && meta.delay !== undefined;
+
+/**
  * Whether an image keeps its animation — an animated source, and an output that can hold the frames
  * — and the height of one frame.
  */
@@ -328,7 +335,7 @@ async function animationOf(
   // read without `animated`, so `height` is one frame's
   const meta = await sharp(source).metadata();
   const format = config['format'] ?? meta.format;
-  const kept = (meta.pages ?? 1) > 1 && format !== undefined && ANIMATED_FORMATS.has(format);
+  const kept = isAnimated(meta) && format !== undefined && ANIMATED_FORMATS.has(format);
   return { kept, frameHeight: meta.height };
 }
 

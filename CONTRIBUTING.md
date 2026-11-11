@@ -1,6 +1,6 @@
 # Contributing to turbopack-imagetools
 
-Thanks for your interest! Contributions of all kinds are welcome — bug reports, fixes, directives, docs and ideas.
+Thanks for your interest! Contributions of all kinds are welcome — bug reports, fixes, directives, docs and ideas. Everyone taking part is expected to follow the [Code of Conduct](./CODE_OF_CONDUCT.md).
 
 This guide covers the **contribution process**. For the **technical deep-dive** — how the loaders work, the repo layout and the gotchas — read **[AGENTS.md](./AGENTS.md)**.
 
@@ -43,10 +43,10 @@ It builds the package and starts `next dev` in `playground/`. Rebuild the packag
 
 ## Development workflow
 
-The canonical checks — the same gates CI enforces on every push and PR — run from the repo root:
+The canonical checks — the same gates CI enforces on every push and PR — run from the repo root. Build first: the type check covers the playground and the fixture app, which import the built package.
 
 ```bash
-pnpm check && pnpm build && pnpm test
+pnpm build && pnpm check && pnpm test
 ```
 
 While iterating, `pnpm test:unit` runs only the unit tests and finishes in seconds; `pnpm test:e2e` runs only the end-to-end tests.

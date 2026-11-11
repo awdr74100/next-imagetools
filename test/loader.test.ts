@@ -580,10 +580,10 @@ describe('module loader', () => {
         .toFile(animated);
     });
 
-    const output = async (query: string) => {
-      const code = (await moduleLoader.default.call(context(query, animated))) as string;
-      const sub = code.match(/"\.\/anim\.gif(\?[^"]+)"/)![1]!;
-      return (await assetLoader.default.call(context(sub, animated))) as Buffer;
+    const output = async (query: string, file = animated) => {
+      const code = (await moduleLoader.default.call(context(query, file))) as string;
+      const sub = code.match(/"\.\/[^"?]+(\?[^"]+)"/)![1]!;
+      return (await assetLoader.default.call(context(sub, file))) as Buffer;
     };
     /** Each frame's size and the color at its center. */
     const frames = async (bytes: Buffer) => {
@@ -646,6 +646,69 @@ describe('module loader', () => {
       warnings = [];
       await runModule('?w=100&format=png');
       expect(warnings).toEqual([]);
+    });
+
+    it('treats a multi-page TIFF as a still image, not an animation', async () => {
+      // pages, like an animation, but no frame delays
+      const tiff = path.join(path.dirname(HERO), 'pages.tiff');
+      await sharp(
+        [
+          await sharp({ create: { width: 200, height: 100, channels: 3, background: '#ff0000' } })
+            .png()
+            .toBuffer(),
+          await sharp({ create: { width: 200, height: 100, channels: 3, background: '#0000ff' } })
+            .png()
+            .toBuffer(),
+        ],
+        { join: { animated: true } },
+      )
+        .tiff()
+        .toFile(tiff);
+      expect((await sharp(tiff).metadata()).pages).toBe(2);
+
+      warnings = [];
+      expect(await frames(await output('?w=100&format=webp', tiff))).toEqual([
+        { width: 100, height: 50, color: 'red' },
+      ]);
+      await output('?w=100&format=png', tiff);
+      expect(warnings).toEqual([]);
+    });
+  });
+
+  describe('EXIF-rotated sources', () => {
+    // stored 400x300 with orientation 6, as phones save portraits: shown 300x400
+    let portrait: string;
+    beforeAll(async () => {
+      portrait = path.join(path.dirname(HERO), 'portrait.jpg');
+      await sharp({ create: { width: 400, height: 300, channels: 3, background: '#cc3333' } })
+        .jpeg()
+        .withMetadata({ orientation: 6 })
+        .toFile(portrait);
+    });
+    const run = async (query: string) =>
+      exported((await moduleLoader.default.call(context(query, portrait))) as string);
+
+    it('clamps to the upright size, which imagetools-core resizes', async () => {
+      // the stored height (300) would cap h=350 although the image is 400 tall
+      expect(await run('?h=350&as=metadata:width;height')).toEqual({ width: 263, height: 350 });
+      expect(await run('?w=350&as=metadata:width;height')).toEqual({ width: 300, height: 400 });
+    });
+
+    it('lists an upright width once, and warns when values merge', async () => {
+      warnings = [];
+      expect(await run('?w=300;350&format=webp&as=srcset')).toBe('#0 300w');
+      expect(warnings).toEqual([
+        "portrait.jpg?w=300;350&format=webp&as=srcset: w=300;350 goes beyond the source's 300px, " +
+          'so some variants come out identical. Remove the extra values, or add allowUpscale=true ' +
+          'to scale up.',
+      ]);
+    });
+
+    it('clamps to the stored size with noAutoOrient, which keeps the image as stored', async () => {
+      expect(await run('?w=350&noAutoOrient&as=metadata:width;height')).toEqual({
+        width: 350,
+        height: 263,
+      });
     });
   });
 

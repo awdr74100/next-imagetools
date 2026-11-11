@@ -18,6 +18,20 @@ export interface TypegenOptions {
 
 const OUTPUT_FORMATS = new Set([...Object.keys(builtinOutputFormats), 'next']);
 
+// Reserved words can't be export names; everything else that is a valid identifier can.
+const RESERVED = new Set(
+  (
+    'await break case catch class const continue debugger default delete do else enum export ' +
+    'extends false finally for function if implements import in instanceof interface let new ' +
+    'null package private protected public return static super switch this throw true try ' +
+    'typeof var void while with yield'
+  ).split(' '),
+);
+
+/** Whether a result key can also be exported by name. */
+export const isExportName = (key: string): boolean =>
+  /^[A-Za-z_$][\w$]*$/.test(key) && !RESERVED.has(key);
+
 /**
  * The directives an import resolves to, as the loader resolves them (minus the config file's
  * `defaultDirectives` function, which needs the image). `undefined` for an unknown preset.
@@ -105,13 +119,18 @@ export function shapeOf(query: string, options: TypegenOptions = {}): Shape | un
         named: ['src', 'width', 'height', 'blurDataURL', 'blurWidth', 'blurHeight', ...extra],
       };
     default: {
-      // metadata / meta, optionally narrowed to some keys
+      // metadata / meta, optionally narrowed to some keys. imagetools-core leaves out keys the
+      // metadata doesn't have, so a misspelled one is dropped from the type too, rather than
+      // failing the whole project's type check.
       const keys = args?.split(';').filter(Boolean);
       const base = keys?.length
-        ? `Pick<ImagetoolsMetadata, ${keys.map(k => JSON.stringify(k)).join(' | ')}>`
+        ? `Pick<ImagetoolsMetadata, Extract<${keys.map(k => JSON.stringify(k)).join(' | ')}, keyof ImagetoolsMetadata>>`
         : 'ImagetoolsMetadata';
       if (count !== 1) return { type: `(${withPlaceholder(base)})[]`, named: [] };
-      return { type: withPlaceholder(base), named: [...(keys ?? METADATA_KEYS), ...extra] };
+      return {
+        type: withPlaceholder(base),
+        named: [...(keys?.filter(isExportName) ?? METADATA_KEYS), ...extra],
+      };
     }
   }
 }
@@ -133,9 +152,11 @@ export function declarationsFor(
   const named =
     options.namedExports === false
       ? []
-      : shape.named.map(key => `  export const ${key}: Value[${JSON.stringify(key)}];`);
+      : shape.named.map(key => `  export const ${key}: Field<${JSON.stringify(key)}>;`);
   const body = [
     '  type Value = ' + shape.type + ';',
+    // a key the value doesn't have isn't exported at runtime either
+    '  type Field<K extends string> = K extends keyof Value ? Value[K] : never;',
     '  const value: Value;',
     '  export default value;',
     ...named,

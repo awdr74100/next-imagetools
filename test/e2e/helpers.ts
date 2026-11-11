@@ -41,16 +41,15 @@ export async function writeHero(background: RGB) {
   for (const file of [HERO, ...HERO_COPIES]) writeFileSync(file, buf);
 }
 
+/** Imagetools' disk cache in the fixture, at its default location. */
+export const IMAGETOOLS_CACHE = path.join(ROOT, 'node_modules/.cache/turbopack-imagetools');
+
 export function clean({ next = false, imagetools = false }) {
   if (next) {
     rmSync(path.join(ROOT, '.next'), { recursive: true, force: true });
     rmSync(path.join(ROOT, 'out'), { recursive: true, force: true });
   }
-  if (imagetools)
-    rmSync(path.join(ROOT, 'node_modules/.cache/turbopack-imagetools'), {
-      recursive: true,
-      force: true,
-    });
+  if (imagetools) rmSync(IMAGETOOLS_CACHE, { recursive: true, force: true });
 }
 
 export function build({

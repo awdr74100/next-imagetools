@@ -1,7 +1,7 @@
 # turbopack-imagetools
 
 [![CI](https://github.com/awdr74100/turbopack-imagetools/actions/workflows/ci.yml/badge.svg)](https://github.com/awdr74100/turbopack-imagetools/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/awdr74100/turbopack-imagetools/blob/main/LICENSE)
 
 Build-time image transforms for Next.js with Turbopack. Describe the variants you want in the import, and get static, optimized files — no image server, no runtime cost, and it works with `output: 'export'`.
 
@@ -106,7 +106,7 @@ Mistakes are reported instead of silently producing the wrong image. Each messag
 
 A stray separator is ignored: `format=webp;` means `format=webp`, not a second image without a format.
 
-Widths and heights larger than the source are reduced to the source size, so a 1600px photo never comes out at 3000px. Add `allowUpscale=true` to scale up anyway. When that makes two variants identical — `w=1600;3000` on a 1600px photo — both are kept (they share one file) and the build logs a warning, so the [shape of the import](#multiple-variants) doesn't change with the source.
+Widths and heights larger than the source are reduced to the source size, so a 1600px photo never comes out at 3000px; add `allowUpscale=true` to scale up anyway. The source size is the one you see: a phone photo stored sideways with an EXIF rotation counts as upright, as imagetools turns it. When reducing makes two variants identical — `w=1600;3000` on a 1600px photo — both are kept (they share one file) and the build logs a warning, so the [shape of the import](#multiple-variants) doesn't change with the source.
 
 Add `inline` to embed the image in your JavaScript as a `data:` URL instead of emitting a file — worth it for tiny images such as blurred placeholders, where a separate request costs more than the bytes:
 
@@ -115,7 +115,7 @@ import placeholder from './photo.jpg?w=24&blur=2&format=webp&inline';
 // "data:image/webp;base64,…"
 ```
 
-Animated GIF and WebP sources keep their animation when the output is `gif` or `webp`; every frame is resized and cropped alike. Other formats can't hold frames, so they keep the first one, and the build warns.
+Animated GIF and WebP sources keep their animation when the output is `gif` or `webp`; every frame is resized and cropped alike. Other formats can't hold frames, so they keep the first one, and the build warns. (A multi-page TIFF isn't an animation: it gives its first page.)
 
 ### Multiple variants
 
@@ -194,7 +194,7 @@ Reference the client types from any `.d.ts` in your app:
 /// <reference types="turbopack-imagetools/client" />
 ```
 
-They type imports by **how the query ends**, since TypeScript allows a single `*` per module pattern. `as=srcset`, `as=img`, `as=picture` and `as=next` type on their own, as long as `as=` comes last; for the URL and metadata outputs, end the query with a marker that says whether it gives one value or an array:
+TypeScript can only recognize an import by **how its query ends**. Queries ending in `as=srcset`, `as=img`, `as=picture` or `as=next` are typed as they are. For the URL and metadata outputs, end the query with a marker that says whether it gives one value or an array:
 
 ```ts
 import url from './photo.jpg?w=800&format=webp&imagetools'; // string
@@ -427,7 +427,7 @@ export default defineConfig({
 - **`resolveConfigs`** — replaces how directives expand into the list of images to generate.
 - **`defaultDirectives`** — directives computed per image; `metadata()` reads the source's [sharp metadata](https://sharp.pixelplumbing.com/api-input#metadata). They sit between the `defaultDirectives` option and the preset.
 
-Editing the config file takes effect immediately, also in a running `next dev`: it is tracked as a dependency of every import that uses it, and its content is part of every cache key. The imagetools-core API it builds on is re-exported from `turbopack-imagetools/core`. A `.ts` config file needs a Node.js version that runs TypeScript natively (22.18 or newer); otherwise use `.mjs` or `.js`.
+Editing the config file takes effect immediately, also in a running `next dev`: it is tracked as a dependency of every import that uses it, and its content is part of every cache key. Only the config file itself is tracked, though: if it imports other local modules, an edit to one of those isn't seen — keep the code in the config file, or after such an edit, restart `next dev` and delete `node_modules/.cache/turbopack-imagetools`. The imagetools-core API it builds on is re-exported from `turbopack-imagetools/core`. A `.ts` config file needs a Node.js version that runs TypeScript natively (22.18 or newer); otherwise use `.mjs` or `.js`.
 
 Types for a custom output format are up to you, as with any `as=` value TypeScript can't know about:
 
@@ -445,9 +445,7 @@ Directives, output formats and the `&imagetools` type markers are the same, so m
 
 One deliberate difference: when values clamp to the source size and become identical, vite-imagetools merges them, so `w=1600;3000` on a 1600px source gives a single URL instead of an array. Here the array keeps both entries, so the shape of an import [follows from its query](#multiple-variants).
 
-`defaultDirectives` takes directives as data (a query string or an object) rather than a function. For per-image presets, use [`presets`](#presets-and-defaults) — `?preset=hero` instead of a custom `?hero` directive.
-
-Options that take functions (`extendTransforms`, `extendOutputFormats`, `resolveConfigs`, and `defaultDirectives` as a function) move to a [config file](#custom-transforms-and-output-formats).
+Options that take functions (`extendTransforms`, `extendOutputFormats`, `resolveConfigs`, and `defaultDirectives` as a function) move to a [config file](#custom-transforms-and-output-formats), since `next.config` can only pass data to the loaders. The `defaultDirectives` option itself takes a query string or an object. A custom directive such as `?hero` still works from the config file's `defaultDirectives`, but a [preset](#presets-and-defaults) (`?preset=hero`) needs no code.
 
 ## How it works
 
@@ -477,7 +475,7 @@ Measured on 12 variants of a 24-megapixel JPEG in one worker: peak memory went f
 
 ## Contributing
 
-Bug reports and pull requests are welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the development setup and the test suites.
+Bug reports and pull requests are welcome. See [CONTRIBUTING.md](https://github.com/awdr74100/turbopack-imagetools/blob/main/CONTRIBUTING.md) for the development setup and the test suites, and the [Code of Conduct](https://github.com/awdr74100/turbopack-imagetools/blob/main/CODE_OF_CONDUCT.md).
 
 ## Acknowledgements
 
@@ -485,4 +483,4 @@ The directive syntax, transforms and output formats come from [imagetools](https
 
 ## License
 
-[MIT](./LICENSE) © Roya
+[MIT](https://github.com/awdr74100/turbopack-imagetools/blob/main/LICENSE) © Roya

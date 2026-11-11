@@ -1,11 +1,22 @@
+import { existsSync, readdirSync } from 'node:fs';
+
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { BLUE, RED, build, clean, startServer, verifyPage, writeHero } from './helpers';
+import {
+  BLUE,
+  IMAGETOOLS_CACHE,
+  RED,
+  build,
+  clean,
+  startServer,
+  verifyPage,
+  writeHero,
+} from './helpers';
 
 const PORT = 3201;
 
-async function buildAndVerify(color: typeof BLUE) {
-  const log = build();
+async function buildAndVerify(color: typeof BLUE, extraEnv: Record<string, string> = {}) {
+  const log = build({ extraEnv });
   // An early prototype made Turbopack log "AVIF image not supported" for generated AVIF files
   // (they were emitted fine). The cause wasn't pinned down before it went away, so guard against
   // it coming back.
@@ -62,5 +73,15 @@ describe('next build (Turbopack)', { concurrent: false }, () => {
   it('source reverted, all caches kept: old version comes back', async () => {
     await writeHero(BLUE);
     await buildAndVerify(BLUE);
+  });
+
+  // The module loader and the asset loader each encode an image when nothing is cached, possibly
+  // in different workers. Encoding must be deterministic, or the URL a page renders could name a
+  // file that was never emitted (what vite-imagetools 9.0.2 did when it re-encoded cache hits).
+  it('disk cache off: every image encoded again, same URLs as the cold build', async () => {
+    clean({ next: true, imagetools: true });
+    const urls = (await buildAndVerify(BLUE, { TPIT_NO_CACHE: '1' })).map(i => i.url);
+    expect(urls).toEqual(coldUrls);
+    expect(existsSync(IMAGETOOLS_CACHE) ? readdirSync(IMAGETOOLS_CACHE) : []).toEqual([]);
   });
 });
