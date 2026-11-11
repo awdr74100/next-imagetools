@@ -1,6 +1,6 @@
 import type { NextConfig } from 'next';
 
-import type { LoaderOptions } from './shared';
+import type { LoaderOptions, ResolvedLoaderOptions, WebpackTarget } from './shared';
 
 export interface ImagetoolsOptions extends LoaderOptions {
   /** Source extensions handled by imagetools. Imports without a query are left to Next.js. */
@@ -71,9 +71,45 @@ function warnOnMultiValueDefaults(defaults: ImagetoolsOptions['defaultDirectives
   );
 }
 
+type WebpackFunction = NonNullable<NextConfig['webpack']>;
+type WebpackContext = Parameters<WebpackFunction>[1];
+
+const escapeRegExp = (s: string) => s.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /**
- * Adds the imagetools rules to `turbopack.rules`. Rules the config already has for the same
- * extension are kept and run first.
+ * The webpack rule. Next.js' own image rule matches the same imports; this one is `enforce: 'post'`
+ * so the loader's pitch runs before every other loader and handles the import alone (see `pitch` in
+ * loader.ts). The conditions besides the query follow Next.js' image rule: imports from CSS and
+ * `url()` dependencies stay with css-loader, and Next.js' metadata queries (`?__next_metadata__`,
+ * …) with Next.js.
+ */
+function webpackRule(options: LoaderOptions, extensions: string[], context: WebpackContext) {
+  const { isServer, nextRuntime, dev, config } = context;
+  const webpack: WebpackTarget = {
+    compilerType: !isServer ? 'client' : nextRuntime === 'edge' ? 'edge-server' : 'server',
+    isDev: dev,
+    assetPrefix: config.assetPrefix ?? '',
+  };
+  // not every supported Next.js version has it
+  const salt = (config as { outputHashSalt?: unknown }).outputHashSalt;
+  if (typeof salt === 'string' && salt) webpack.outputHashSalt = salt;
+  const loaderOptions: ResolvedLoaderOptions = { ...options, webpack };
+  return {
+    test: new RegExp(`\\.(?:${extensions.map(escapeRegExp).join('|')})$`),
+    resourceQuery: /^\?(?![\s\S]*__next_)[\s\S]/,
+    issuer: { not: /\.(?:css|scss|sass)$/ },
+    dependency: { not: ['url'] },
+    enforce: 'post',
+    loader: 'next-imagetools/loader',
+    options: loaderOptions,
+  };
+}
+
+/**
+ * Adds the imagetools rules to `turbopack.rules`, and a rule to the webpack config for `next build
+ * --webpack` / `next dev --webpack`; Next.js applies whichever matches the bundler in use.
+ * Turbopack rules the config already has for the same extension are kept and run first; a
+ * `webpack()` function the config already has runs before the rule is added.
  */
 export function withImagetools(
   nextConfig: NextConfig = {},
@@ -89,5 +125,13 @@ export function withImagetools(
     const ours = toRules(imagetoolsRules(loaderOptions, ext));
     rules[key] = existing === undefined ? ours : [...toRules(existing), ...ours];
   }
-  return { ...nextConfig, turbopack: { ...nextConfig.turbopack, rules } };
+  const userWebpack = nextConfig.webpack;
+  const webpack: WebpackFunction = (config, context) => {
+    const result = userWebpack ? userWebpack(config, context) : config;
+    result.module ??= {};
+    result.module.rules ??= [];
+    result.module.rules.push(webpackRule(loaderOptions, extensions, context));
+    return result;
+  };
+  return { ...nextConfig, turbopack: { ...nextConfig.turbopack, rules }, webpack };
 }

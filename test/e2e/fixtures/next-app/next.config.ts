@@ -14,7 +14,10 @@ const nextConfig: NextConfig = {
   assetPrefix: process.env.NIT_ASSET_PREFIX || undefined,
   // export has no image optimization server; imagetools already did the work at build time
   images: isExport ? { unoptimized: true } : undefined,
-  pageExtensions: isExport ? ['static.tsx'] : ['static.tsx', 'dynamic.tsx'],
+  // Next.js' webpack app loader receives a single page extension as a string, not a list, and
+  // fails on it (`pageExtensions.flatMap is not a function`), so export mode lists two; nothing
+  // in the fixture ends in .static.ts
+  pageExtensions: isExport ? ['static.tsx', 'static.ts'] : ['static.tsx', 'dynamic.tsx'],
 };
 
 export default withImagetools(nextConfig, {

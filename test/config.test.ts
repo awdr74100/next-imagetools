@@ -134,4 +134,88 @@ describe('withImagetools', () => {
     withImagetools(input);
     expect(JSON.stringify(input)).toBe(snapshot);
   });
+
+  describe('webpack', () => {
+    type WebpackRule = {
+      test: RegExp;
+      resourceQuery: RegExp;
+      enforce?: string;
+      loader?: string;
+      options?: { webpack?: object; [key: string]: unknown };
+    };
+    type Context = Parameters<NonNullable<NextConfig['webpack']>>[1];
+    const contextFor = (overrides: Partial<Context> = {}, config: object = {}) =>
+      ({
+        isServer: false,
+        dev: false,
+        config: { assetPrefix: '', ...config },
+        ...overrides,
+      }) as Context;
+    const ruleOf = (config: NextConfig, context = contextFor()) => {
+      const result = config.webpack!({ module: { rules: [] } }, context) as {
+        module: { rules: WebpackRule[] };
+      };
+      return result.module.rules.at(-1)!;
+    };
+
+    it('adds an enforce: post rule for queried imports of the configured extensions', () => {
+      const rule = ruleOf(withImagetools({}, { extensions: ['jpg', 'png'] }));
+      expect(rule).toMatchObject({ enforce: 'post', loader: 'next-imagetools/loader' });
+      expect(rule.test.test('/a/hero.jpg')).toBe(true);
+      expect(rule.test.test('/a/hero.png')).toBe(true);
+      expect(rule.test.test('/a/hero.webp')).toBe(false);
+      expect(rule.resourceQuery.test('?w=400')).toBe(true);
+      expect(rule.resourceQuery.test('')).toBe(false);
+      // Next.js' metadata images (app/icon.png, opengraph-image.jpg) stay with Next.js
+      expect(rule.resourceQuery.test('?__next_metadata__')).toBe(false);
+      expect(rule.resourceQuery.test('?x=1&__next_metadata_image_meta__')).toBe(false);
+    });
+
+    it('tells the loader where each compiler emits and what URLs point there', () => {
+      const config = withImagetools({}, { removeMetadata: false });
+      expect(ruleOf(config).options).toEqual({
+        removeMetadata: false,
+        webpack: { compilerType: 'client', isDev: false, assetPrefix: '' },
+      });
+      const server = ruleOf(
+        config,
+        contextFor({ isServer: true, nextRuntime: 'nodejs', dev: true }, { assetPrefix: '/cdn' }),
+      );
+      expect(server.options?.webpack).toEqual({
+        compilerType: 'server',
+        isDev: true,
+        assetPrefix: '/cdn',
+      });
+      const edge = ruleOf(
+        config,
+        contextFor({ isServer: true, nextRuntime: 'edge' }, { outputHashSalt: 's' }),
+      );
+      expect(edge.options?.webpack).toMatchObject({
+        compilerType: 'edge-server',
+        outputHashSalt: 's',
+      });
+    });
+
+    it('runs a webpack() function the config already has, then adds the rule', () => {
+      const own = { test: /\.svg$/, loader: '@svgr/webpack' };
+      const config = withImagetools({
+        webpack: (webpackConfig: { module: { rules: object[] } }) => {
+          webpackConfig.module.rules.push(own);
+          return webpackConfig;
+        },
+      });
+      const result = config.webpack!({ module: { rules: [] } }, contextFor()) as {
+        module: { rules: WebpackRule[] };
+      };
+      expect(result.module.rules[0]).toBe(own);
+      expect(result.module.rules[1]?.loader).toBe('next-imagetools/loader');
+    });
+
+    it('creates module.rules when the config has none', () => {
+      const result = withImagetools({}).webpack!({}, contextFor()) as {
+        module: { rules: unknown[] };
+      };
+      expect(result.module.rules).toHaveLength(1);
+    });
+  });
 });

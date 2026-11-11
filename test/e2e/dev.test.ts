@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   ACCENTED,
   BLUE,
+  BUNDLERS,
   CONFIG_FILE,
   RED,
   clean,
@@ -19,7 +20,7 @@ import {
 const PORT = 3202;
 
 // Each step builds on the cache state the previous one left behind.
-describe('next dev (Turbopack)', { concurrent: false }, () => {
+describe.for(BUNDLERS)('next dev (%s)', { concurrent: false }, bundler => {
   let server: Awaited<ReturnType<typeof startServer>> | undefined;
   logServerOnFailure(() => server);
   const originalConfig = readFileSync(CONFIG_FILE, 'utf8');
@@ -35,7 +36,7 @@ describe('next dev (Turbopack)', { concurrent: false }, () => {
   });
 
   it('cold start serves every image', async () => {
-    server = await startServer('dev', PORT);
+    server = await startServer('dev', PORT, undefined, { bundler });
     await verifyPage(server.base, BLUE);
   });
 
@@ -46,14 +47,14 @@ describe('next dev (Turbopack)', { concurrent: false }, () => {
 
   it('restart reuses the persistent cache without going stale', async () => {
     await server!.stop();
-    server = await startServer('dev', PORT);
+    server = await startServer('dev', PORT, undefined, { bundler });
     await verifyPage(server.base, RED);
   });
 
   it('source edited while the server is stopped', async () => {
     await server!.stop();
     await writeHero(BLUE);
-    server = await startServer('dev', PORT);
+    server = await startServer('dev', PORT, undefined, { bundler });
     await verifyPage(server.base, BLUE);
   });
 

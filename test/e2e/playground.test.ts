@@ -3,14 +3,14 @@
 import { chromium, type Browser } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { PLAYGROUND, build, startServer } from './helpers';
+import { BUNDLERS, PLAYGROUND, build, startServer } from './helpers';
 
-describe('playground', () => {
+describe.for(BUNDLERS)('playground (%s)', bundler => {
   let browser: Browser;
   let server: Awaited<ReturnType<typeof startServer>>;
 
   beforeAll(async () => {
-    build({ root: PLAYGROUND });
+    build({ bundler, root: PLAYGROUND });
     server = await startServer('start', 3206, PLAYGROUND);
     browser = await chromium.launch();
   });

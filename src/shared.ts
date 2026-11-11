@@ -59,14 +59,31 @@ export interface LoaderOptions {
 export const toParams = (directives: Directives | undefined): URLSearchParams | undefined =>
   directives === undefined ? undefined : new URLSearchParams(directives);
 
-/** The subset of the webpack loader context that Turbopack provides and these loaders use. */
+/**
+ * Set by `withImagetools()` on the webpack rule only: where the compiler at hand emits files and
+ * what URLs point at them, as Next.js tells its own next-image-loader.
+ */
+export type WebpackTarget = {
+  compilerType: 'client' | 'server' | 'edge-server';
+  isDev: boolean;
+  /** Next.js' resolved `assetPrefix`, which defaults to `basePath`. */
+  assetPrefix: string;
+  outputHashSalt?: string;
+};
+
+/** What the loaders receive: the user's options, plus the webpack target under webpack. */
+export type ResolvedLoaderOptions = LoaderOptions & { webpack?: WebpackTarget };
+
+/** The subset of the webpack loader context that Turbopack and webpack provide and these use. */
 export interface LoaderContext {
   resourcePath: string;
   resourceQuery: string;
   rootContext?: string;
-  getOptions?: () => LoaderOptions;
+  getOptions?: () => ResolvedLoaderOptions;
   emitWarning?: (warning: Error) => void;
   addDependency?: (file: string) => void;
+  /** Webpack only; Turbopack has no emitFile. */
+  emitFile?: (name: string, content: Buffer) => void;
 }
 
 /** Marks the internal per-image import that returns the encoded bytes. */

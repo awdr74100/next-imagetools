@@ -4,7 +4,7 @@
 [![CI](https://github.com/awdr74100/next-imagetools/actions/workflows/ci.yml/badge.svg)](https://github.com/awdr74100/next-imagetools/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/awdr74100/next-imagetools/blob/main/LICENSE)
 
-Build-time image transforms for Next.js with Turbopack. Describe the variants you want in the import, and get static, optimized files — no image server, no runtime cost, and it works with `output: 'export'`.
+Build-time image transforms for Next.js, with Turbopack or webpack. Describe the variants you want in the import, and get static, optimized files — no image server, no runtime cost, and it works with `output: 'export'`.
 
 ```tsx
 import hero from './hero.jpg?w=480;960;1440&format=avif;webp&as=picture';
@@ -56,7 +56,7 @@ pnpm add next-imagetools
 # or: npm install next-imagetools / yarn add next-imagetools
 ```
 
-**Requirements:** Next.js 16.2 or newer and Node.js 22.12 or newer. Next.js builds with Turbopack by default; projects that opt into webpack (`next dev --webpack`, `next build --webpack`) aren't supported yet — support is planned for the next release ([#23](https://github.com/awdr74100/next-imagetools/issues/23)).
+**Requirements:** Next.js 16.2 or newer and Node.js 22.12 or newer. Turbopack, Next.js' default bundler, and webpack (`next dev --webpack`, `next build --webpack`) are both supported, with the same options and the same results.
 
 Wrap your Next.js config with `withImagetools`:
 
@@ -72,7 +72,7 @@ const nextConfig: NextConfig = {
 export default withImagetools(nextConfig);
 ```
 
-Wrapping the config is how Next.js plugins hook in (`@next/mdx`, `@next/bundle-analyzer` and others work the same way). `withImagetools` only adds rules to `turbopack.rules`; the rest of your config is passed through untouched, and rules you already have for image files keep running first.
+Wrapping the config is how Next.js plugins hook in (`@next/mdx`, `@next/bundle-analyzer` and others work the same way). `withImagetools` only adds rules to `turbopack.rules` and one rule in `webpack()`; the rest of your config is passed through untouched. Turbopack rules you already have for image files keep running first, and a `webpack()` function you already have runs before the rule is added.
 
 With TypeScript, also [reference the client types](#typescript).
 
@@ -462,7 +462,9 @@ Turbopack runs webpack-style loaders, but its loader API has no `emitFile`, and 
 
 Because the generated images are ordinary Turbopack assets, they behave the same in every rendering mode and deployment target.
 
-Generated files are named after their source: `hero.<hash>.jpg` when the format stays the same, and `hero.jpg.<hash>.webp` when it changes. Turbopack can only rename a module by adding to its file name, so a converted image keeps its original extension in the name.
+webpack has `emitFile`, so with `--webpack` the module loader skips the round trip: it emits each variant itself, where Next.js puts its own static images (`.next/static/media`), and the module holds the URLs. Its rule runs ahead of Next.js' image loader and handles imports with a query on its own; imports without one, and Next.js' metadata images (`app/icon.png`, …), keep Next.js' handling.
+
+Generated files are named after their source: `hero.<hash>.jpg` when the format stays the same, and `hero.jpg.<hash>.webp` when it changes. Turbopack can only rename a module by adding to its file name, so a converted image keeps its original extension in the name; webpack builds name files the same way.
 
 ## Troubleshooting
 

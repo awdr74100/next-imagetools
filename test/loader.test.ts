@@ -20,7 +20,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
 const dist = path.resolve(import.meta.dirname, '../dist');
-type Loader = { default: (this: object) => Promise<string | Buffer>; raw?: boolean };
+type Loader = {
+  default: (this: object) => Promise<string | Buffer>;
+  pitch?: (this: object) => Promise<string> | undefined;
+  raw?: boolean;
+};
 const moduleLoader = require(path.join(dist, 'loader.cjs')) as Loader;
 const assetLoader = require(path.join(dist, 'asset-loader.cjs')) as Loader;
 
@@ -61,8 +65,9 @@ const exported = (code: string): unknown =>
   );
 
 describe('module loader', () => {
-  it('exposes the loader-runner shape (default + raw)', () => {
+  it('exposes the loader-runner shape (default + raw, and pitch for webpack)', () => {
     expect(typeof moduleLoader.default).toBe('function');
+    expect(typeof moduleLoader.pitch).toBe('function');
     expect(moduleLoader.raw).toBe(true);
     expect(typeof assetLoader.default).toBe('function');
     expect(assetLoader.raw).toBe(true);
@@ -785,6 +790,102 @@ describe('module loader', () => {
     expect(clamped).toMatch(/w=1600/);
     expect(clamped).not.toMatch(/w=9000/);
     expect(await runModule('?w=2000&format=webp&allowUpscale=true')).toMatch(/w=2000/);
+  });
+});
+
+describe('module loader under webpack', () => {
+  type Emitted = { name: string; content: Buffer };
+  const runWebpack = async (
+    query: string,
+    target: object = {},
+    { options = {}, resourcePath = HERO }: { options?: object; resourcePath?: string } = {},
+  ) => {
+    const emitted: Emitted[] = [];
+    const dependencies: string[] = [];
+    const ctx = {
+      ...context(query, resourcePath, {
+        ...options,
+        webpack: { compilerType: 'client', isDev: false, assetPrefix: '', ...target },
+      }),
+      emitFile: (name: string, content: Buffer) => emitted.push({ name, content }),
+      addDependency: (file: string) => dependencies.push(file),
+    };
+    const code = await moduleLoader.pitch!.call(ctx);
+    return { code: code!, emitted, dependencies };
+  };
+  const valueOf = (code: string): unknown =>
+    JSON.parse(code.match(/const __nit_value = (.*);\n/)![1]!);
+
+  it('lets the import through to the normal phase under Turbopack', () => {
+    expect(moduleLoader.pitch!.call(context('?w=400&format=webp'))).toBeUndefined();
+  });
+
+  it('emits every image itself and exports plain URLs, with no asset imports', async () => {
+    const { code, emitted } = await runWebpack('?w=300;600&format=webp');
+    expect(code).not.toMatch(/import /);
+    const urls = valueOf(code) as string[];
+    expect(urls).toHaveLength(2);
+    expect(emitted).toHaveLength(2);
+    // emitted as the encodes finish, so matched by name rather than position
+    for (const [i, url] of urls.entries()) {
+      expect(url).toMatch(/^\/_next\/static\/media\/hero\.jpg\.[0-9a-f]{16}\.webp$/);
+      const file = emitted.find(e => url === `/_next/${e.name}`);
+      expect(file, url).toBeDefined();
+      expect(await sharp(file!.content).metadata()).toMatchObject({
+        format: 'webp',
+        width: [300, 600][i],
+      });
+    }
+  });
+
+  it('keeps the source name when the format stays, and names files by content', async () => {
+    const { code, emitted } = await runWebpack('?w=1600;3000&format=jpg');
+    const urls = valueOf(code) as string[];
+    expect(urls[0]).toMatch(/\/hero\.[0-9a-f]{16}\.jpg$/);
+    // clamped to the same size: the same bytes, so the same file
+    expect(urls[1]).toBe(urls[0]);
+    expect(emitted[0]!.name).toBe(emitted[1]!.name);
+    const salted = await runWebpack('?w=1600&format=jpg', { outputHashSalt: 'deploy-2' });
+    expect(salted.emitted[0]!.content.equals(emitted[0]!.content)).toBe(true);
+    expect(salted.emitted[0]!.name).not.toBe(emitted[0]!.name);
+  });
+
+  it('emits where next-image-loader does for each compiler', async () => {
+    const nameFor = async (target: object) =>
+      (await runWebpack('?w=100&format=webp', target)).emitted[0]!.name;
+    const file = await nameFor({ compilerType: 'client' });
+    expect(file).toMatch(/^static\/media\//);
+    expect(await nameFor({ compilerType: 'server' })).toBe(`../../${file}`);
+    expect(await nameFor({ compilerType: 'server', isDev: true })).toBe(`../${file}`);
+    expect(await nameFor({ compilerType: 'edge-server' })).toBe(`../${file}`);
+  });
+
+  it('prefixes URLs with the asset prefix and encodes the file name', async () => {
+    const spaced = path.join(workDir, 'images', 'my photo (1) é.jpg');
+    writeFileSync(spaced, readFileSync(HERO));
+    const { code, emitted } = await runWebpack(
+      '?w=100&format=webp',
+      { assetPrefix: '/docs' },
+      { resourcePath: spaced },
+    );
+    expect(valueOf(code)).toMatch(
+      /^\/docs\/_next\/static\/media\/my%20photo%20\(1\)%20%C3%A9\.jpg\.[0-9a-f]{16}\.webp$/,
+    );
+    expect(emitted[0]!.name).toMatch(/^static\/media\/my photo \(1\) é\.jpg\./);
+  });
+
+  it('watches the source, which webpack skips reading after a pitch', async () => {
+    const { dependencies } = await runWebpack('?w=100&format=webp');
+    expect(dependencies).toContain(HERO);
+  });
+
+  it('inlines without emitting, and hands excluded imports back to Next.js', async () => {
+    const inlined = await runWebpack('?w=24&format=webp&inline');
+    expect(inlined.emitted).toEqual([]);
+    expect(valueOf(inlined.code)).toMatch(/^data:image\/webp;base64,/);
+    const excluded = await runWebpack('?w=100', {}, { options: { exclude: ['hero.jpg'] } });
+    expect(excluded.emitted).toEqual([]);
+    expect(excluded.code).toBe('export { default } from "./hero.jpg";\n');
   });
 });
 
