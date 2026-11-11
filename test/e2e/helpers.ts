@@ -64,7 +64,8 @@ export function build({
     encoding: 'utf8',
   });
   if (res.status !== 0) throw new Error(`next build failed:\n${res.stdout}\n${res.stderr}`);
-  return res.stdout;
+  // Turbopack prints its warnings on either stream
+  return `${res.stdout}\n${res.stderr}`;
 }
 
 const MIME: Record<string, string> = {
@@ -338,6 +339,10 @@ function expectedImages(html: string): Expected[] {
   expect(parseSrcset(data.spacedSrcset).map(s => s.width)).toEqual([40, 80]);
   expect(data.spacedSrcset).toMatch(/\/my%20photo%20\(1\)\.jpg\./);
   expect(data.heroInline, 'inline gives a data URL').toMatch(/^data:image\/webp;base64,/);
+  // what the generated types in components/typed.ts claim, at runtime
+  expect(typeof data.typed.single).toBe('string');
+  expect(data.typed.pair).toHaveLength(2);
+  expect(data.typed.metas.map((m: { width: number }) => m.width)).toEqual([200, 400]);
   expect(data.heroNext, 'as=next is StaticImageData for the largest variant').toMatchObject({
     width: 600,
     height: 375,

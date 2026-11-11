@@ -12,6 +12,7 @@ Guidance for anyone — human or agent — working in this repository. Read it b
   - `src/index.ts` — `withImagetools()`, which adds the Turbopack rules to `next.config`. Runs when the config loads, so it must not import anything heavy at runtime (`shared.ts` pulls in sharp).
   - `src/loader.ts` — the **module loader**: resolves directives, processes variants, returns a JS module.
   - `src/asset-loader.ts` — the **asset loader**: returns the encoded bytes of one variant.
+  - `src/typegen.ts` — exact types per query; `src/project-types.ts` and `src/cli.ts` — the `turbopack-imagetools typegen` command.
   - `src/directives.ts` — directive checks: known names, value rules, typo suggestions.
   - `src/shared.ts` — processing, the disk cache, cache keys, config-file loading. Bundled into one chunk shared by both loaders, so its in-process memo is shared too.
   - `src/config.ts` / `src/core.ts` — the `turbopack-imagetools/config` and `/core` entries for config files.
@@ -44,6 +45,10 @@ Placeholders (`__TPIT_<i>__`) stand in for URLs while the output format runs, an
 - **imagetools-core ignores what it doesn't understand.** Unknown directives and unparsable values silently fall back to defaults (and `parametersUsed` from `generateTransforms` is empty for the built-ins, so it can't detect them). `directives.ts` keeps the known names and value rules; `test/directives.test.ts` checks the list against core's source, so an upgrade that renames a directive fails there.
 - **Warnings go through `warn()`,** errors through `withContext()` (both in `shared.ts`): they prefix the import (`images/hero.jpg?w=…`), and `warn()` drops the stack trace Turbopack would otherwise print under the message.
 
+- **Generated types and pattern precedence.** TypeScript picks, among matching module patterns, the one with the longest prefix before `*`, and on a tie the first declared — an order nobody controls. Generated declarations use `.*?query` (a one-character prefix) so relative imports get them over the client types' `*` patterns; `test/typegen.test.ts` compiles against a conflicting declaration loaded first to hold this.
+- **`next build` empties distDir before compiling** (keeping `cache`, `dev`, `diagnostics`, `lock`, `trace`), and a warm Turbopack cache then skips the loaders, so loader-written types alone vanish on the second build. `withImagetools` chains `compiler.runAfterProductionCompile` to write them all after the compile, before the App Router type check. A Pages Router app is type-checked before the compile, and the build type check filters out `<distDir>/dev/types` — there is no place or hook for it, which is why types are opt-in and App Router only. `test/e2e/build.test.ts` walks warm builds with the type check.
+- **Generated declarations must not import imagetools-core or sharp.** They live in the app's `.next/types`, where pnpm's strict layout can't resolve the package's dependencies; `client.d.ts` defines global aliases (`ImagetoolsImg`, `ImagetoolsMetadata`, …) for them instead.
+
 ## Commands
 
 All from the repo root. pnpm is pinned via `packageManager`.
@@ -75,6 +80,7 @@ pnpm playground            # build + next dev in playground/
 - **No AI attribution** in commits or PRs: no `Co-Authored-By` trailers, no mentions of AI tools.
 - Match the surrounding code: comment _why_, not what; formatting is oxfmt's.
 - Keep docs truthful: only document what is implemented and tested.
+- oxfmt sorts imports inside Markdown code blocks too, so a comment on its own line after an import can end up under a different one. In README examples, put the comment on the import's line, or each import in its own block.
 
 ## Releasing
 

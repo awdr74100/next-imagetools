@@ -20,7 +20,7 @@ import {
 import picomatch from 'picomatch';
 import sharp, { type Metadata } from 'sharp';
 
-import { checkDirectives, dropEmptyValues } from './directives';
+import { TYPE_MARKERS, checkDirectives, dropEmptyValues } from './directives';
 import { largest, nextFormat, placeholderKind, placeholderOf } from './placeholder';
 import {
   ANIMATED_FORMATS,
@@ -35,9 +35,9 @@ import {
   type LoaderContext,
   type LoaderOptions,
 } from './shared';
+import { declarationsFor, imageCount, writeDeclaration } from './typegen';
 
 const PLACEHOLDER = (i: number) => `__TPIT_${i}__`;
-const TYPE_MARKERS = ['imagetools', 'imagetools-gallery'];
 
 // For data URLs; formats not listed fall back to `image/<format>`.
 const MIME_TYPES: Record<string, string> = {
@@ -124,6 +124,37 @@ function trackReads(params: URLSearchParams, keys: Set<string>): void {
         return original(key, value);
       },
     });
+  }
+}
+
+/**
+ * Writes the import's declaration for the generated types (see typegen.ts), and warns when the
+ * declaration can't match: the config file's `defaultDirectives` function runs per image, so it can
+ * turn what the query alone makes a single value into an array.
+ */
+function writeTypes(
+  ctx: LoaderContext,
+  options: LoaderOptions,
+  produced: number,
+  as: string | undefined,
+): void {
+  const query = ctx.resourceQuery;
+  const declaration = declarationsFor(query, options);
+  if (!declaration) return;
+  writeDeclaration(
+    path.resolve(ctx.rootContext ?? process.cwd(), options.typesDir!),
+    query,
+    declaration,
+  );
+  const expected = imageCount(query, options);
+  const shaped = as === undefined || as === 'url' || as === 'metadata' || as === 'meta';
+  if (shaped && expected !== undefined && expected > 1 !== produced > 1) {
+    warn(
+      ctx,
+      `the query alone gives ${expected === 1 ? 'one image' : `${expected} images`}, but the ` +
+        `config file's defaultDirectives made it ${produced}, so this import's generated type ` +
+        `(${expected === 1 ? 'a single value' : 'an array'}) won't match what it returns.`,
+    );
   }
 }
 
@@ -310,6 +341,8 @@ async function load(this: LoaderContext): Promise<string> {
     .map((q, i) => (q === undefined ? '' : `import __tpit_${i} from ${JSON.stringify(self + q)};`))
     .filter(Boolean)
     .join('\n');
+
+  if (options.types !== false && options.typesDir) writeTypes(this, options, configs.length, as);
 
   const named = options.namedExports === false ? [] : namedExportKeys(result);
   const namedExports = named

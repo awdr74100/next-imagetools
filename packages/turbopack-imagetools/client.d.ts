@@ -18,6 +18,11 @@
 // `as=srcset`, `as=img` and `as=picture` always produce a single value, so those also type
 // without a marker as long as the `as=` directive comes last.
 
+// Global so the declarations generated into an app's `.next/types` can use them: imagetools-core
+// resolves from here, where it is a dependency, but not from an app under pnpm's strict layout.
+type ImagetoolsImg = import('imagetools-core').Img;
+type ImagetoolsPicture = import('imagetools-core').Picture;
+
 /** Flat metadata of one generated image: sharp's metadata, with the output's size and format. */
 interface ImagetoolsMetadata extends Omit<import('sharp').Metadata, 'width' | 'height' | 'format'> {
   /** URL of the generated image. */
