@@ -14,6 +14,9 @@ importers:
       changelogen:
         specifier: ^0.6.2
         version: 0.6.2
+      imagetools-core:
+        specifier: ^12.0.0
+        version: 12.0.0
       knip:
         specifier: ^6.44.2
         version: 6.44.2

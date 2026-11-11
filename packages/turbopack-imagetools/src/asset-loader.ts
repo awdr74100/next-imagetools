@@ -3,10 +3,22 @@
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 
-import { MARKER, hash, loadConfig, prepareCache, processImage, type LoaderContext } from './shared';
+import {
+  MARKER,
+  hash,
+  loadConfig,
+  prepareCache,
+  processImage,
+  withContext,
+  type LoaderContext,
+} from './shared';
 
 // loader-runner awaits a returned promise, so no this.async() is needed
-export default async function imagetoolsAssetLoader(this: LoaderContext): Promise<Buffer> {
+export default function imagetoolsAssetLoader(this: LoaderContext): Promise<Buffer> {
+  return withContext(this, () => load.call(this));
+}
+
+async function load(this: LoaderContext): Promise<Buffer> {
   const options = this.getOptions?.() ?? {};
   const params = new URLSearchParams(this.resourceQuery);
   const ext = params.get(`${MARKER}_ext`);

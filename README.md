@@ -91,12 +91,20 @@ The most common ones:
 
 - `w` / `h` — width / height in pixels
 - `format` — `avif`, `webp`, `jpg`, `png`, `gif`, `tiff` or `heif`
-- `quality` — `0`–`100`
+- `quality` — `1`–`100`
 - `fit` — `cover`, `contain`, `fill`, `inside` or `outside` (when both `w` and `h` are set)
 - `position` — where to crop from with `fit=cover`, e.g. `top` or `attention`
 - `blur`, `rotate`, `flip`, `flop`, `grayscale`, `tint`, `normalize`, `lossless`, `progressive`, …
 
-See the [imagetools directive reference](https://github.com/JonasKruckenberg/imagetools/blob/main/docs/directives.md) for every directive and its values.
+See the [imagetools directive reference](https://github.com/JonasKruckenberg/imagetools/blob/main/docs/directives.md) for every directive and its values. (It still lists `withoutEnlargement` and `withoutReduction`, which imagetools-core no longer reads — a fix is proposed in [imagetools#965](https://github.com/JonasKruckenberg/imagetools/pull/965). Sizes are never enlarged unless you add `allowUpscale`.)
+
+Mistakes are reported instead of silently producing the wrong image. Each message names the import it is about:
+
+- an **unknown directive** logs a warning with the closest match — `widht=300` → _Did you mean w?_
+- an **invalid value** fails the build — `w=abc`, `quality=0`, or a `format` without output support such as `jxl`
+- an **unknown output format** fails the build — `as=piture` → _Did you mean as=picture?_
+
+A stray separator is ignored: `format=webp;` means `format=webp`, not a second image without a format.
 
 Widths and heights larger than the source are reduced to the source size, so a 1600px photo never comes out at 3000px. Add `allowUpscale=true` to scale up anyway. When that makes two variants identical — `w=1600;3000` on a 1600px photo — both are kept (they share one file) and the build logs a warning, so the [shape of the import](#multiple-variants) doesn't change with the source.
 

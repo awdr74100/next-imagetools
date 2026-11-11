@@ -87,6 +87,20 @@ describe('withImagetools', () => {
     }
   });
 
+  it('has an asset rule for every output format the directive check accepts', async () => {
+    const { OUTPUT_FORMATS } = await import('../packages/turbopack-imagetools/src/directives');
+    const rules = rulesFor(withImagetools({}), '*.png')!;
+    for (const format of OUTPUT_FORMATS) {
+      const ext = format === 'jpeg' ? 'jpg' : format;
+      expect(
+        rules.some(r =>
+          String((r.condition as { query?: RegExp }).query).includes(`tpit_ext=${ext}(`),
+        ),
+        `asset rule for ${format}`,
+      ).toBe(true);
+    }
+  });
+
   it('only handles the configured extensions', () => {
     const rules = withImagetools({}, { extensions: ['png'] }).turbopack?.rules ?? {};
     expect(Object.keys(rules)).toEqual(['*.png']);
