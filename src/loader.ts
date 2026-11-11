@@ -358,7 +358,7 @@ ${namedExports}
 function emitImage(ctx: LoaderContext, target: WebpackTarget, data: Buffer, ext: string): string {
   const source = path.basename(ctx.resourcePath);
   const sourceExt = path.extname(source).slice(1);
-  const stem = sourceExt === ext ? source.slice(0, -sourceExt.length - 1) : source;
+  const stem = sourceExt.toLowerCase() === ext ? source.slice(0, -sourceExt.length - 1) : source;
   // a content hash: identical variants share a file, and an edit never reuses a name
   const contentHash = hash([target.outputHashSalt ?? '', data]).slice(0, 16);
   const name = `${stem}.${contentHash}.${ext}`;

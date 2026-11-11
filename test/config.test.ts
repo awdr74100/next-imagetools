@@ -164,6 +164,9 @@ describe('withImagetools', () => {
       expect(rule.test.test('/a/hero.jpg')).toBe(true);
       expect(rule.test.test('/a/hero.png')).toBe(true);
       expect(rule.test.test('/a/hero.webp')).toBe(false);
+      // Next.js' image rule is case-insensitive, so ours must be too, or it takes `.JPG` imports
+      expect(rule.test.test('/a/HERO.JPG')).toBe(true);
+      expect(rule.test.test('/a/hero.Png')).toBe(true);
       expect(rule.resourceQuery.test('?w=400')).toBe(true);
       expect(rule.resourceQuery.test('')).toBe(false);
       // Next.js' metadata images (app/icon.png, opengraph-image.jpg) stay with Next.js
