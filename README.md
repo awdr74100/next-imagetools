@@ -1,7 +1,8 @@
 # next-imagetools
 
+[![npm](https://img.shields.io/npm/v/next-imagetools?logo=npm&color=cb3837)](https://www.npmjs.com/package/next-imagetools)
 [![CI](https://github.com/awdr74100/next-imagetools/actions/workflows/ci.yml/badge.svg)](https://github.com/awdr74100/next-imagetools/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/awdr74100/next-imagetools/blob/main/LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/awdr74100/next-imagetools/blob/main/LICENSE)
 
 Build-time image transforms for Next.js with Turbopack. Describe the variants you want in the import, and get static, optimized files — no image server, no runtime cost, and it works with `output: 'export'`.
 
