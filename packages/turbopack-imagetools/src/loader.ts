@@ -20,7 +20,7 @@ import {
 import picomatch from 'picomatch';
 import sharp, { type Metadata } from 'sharp';
 
-import { TYPE_MARKERS, checkDirectives, dropEmptyValues } from './directives';
+import { TYPE_MARKERS, checkDirectives, checkMarker, dropEmptyValues } from './directives';
 import { largest, nextFormat, placeholderKind, placeholderOf } from './placeholder';
 import {
   ANIMATED_FORMATS,
@@ -36,7 +36,6 @@ import {
   type LoaderContext,
   type LoaderOptions,
 } from './shared';
-import { declarationsFor, imageCount, isExportName, writeDeclaration } from './typegen';
 
 const PLACEHOLDER = (i: number) => `__TPIT_${i}__`;
 
@@ -125,37 +124,6 @@ function trackReads(params: URLSearchParams, keys: Set<string>): void {
         return original(key, value);
       },
     });
-  }
-}
-
-/**
- * Writes the import's declaration for the generated types (see typegen.ts), and warns when the
- * declaration can't match: the config file's `defaultDirectives` function runs per image, so it can
- * turn what the query alone makes a single value into an array.
- */
-function writeTypes(
-  ctx: LoaderContext,
-  options: LoaderOptions,
-  produced: number,
-  as: string | undefined,
-): void {
-  const query = ctx.resourceQuery;
-  const declaration = declarationsFor(query, options);
-  if (!declaration) return;
-  writeDeclaration(
-    path.resolve(ctx.rootContext ?? process.cwd(), options.typesDir!),
-    query,
-    declaration,
-  );
-  const expected = imageCount(query, options);
-  const shaped = as === undefined || as === 'url' || as === 'metadata' || as === 'meta';
-  if (shaped && expected !== undefined && expected > 1 !== produced > 1) {
-    warn(
-      ctx,
-      `the query alone gives ${expected === 1 ? 'one image' : `${expected} images`}, but the ` +
-        `config file's defaultDirectives made it ${produced}, so this import's generated type ` +
-        `(${expected === 1 ? 'a single value' : 'an array'}) won't match what it returns.`,
-    );
   }
 }
 
@@ -267,6 +235,8 @@ async function load(this: LoaderContext): Promise<string> {
   }
   const configs =
     userConfig.resolveConfigs?.(entries, outputFormats) ?? resolveConfigs(entries, outputFormats);
+  const markerProblem = checkMarker(this.resourceQuery, directives.get('as'), configs.length);
+  if (markerProblem) throw new Error(markerProblem);
   const logger: Logger = {
     info: console.log,
     warn: m => warn(this, m),
@@ -347,8 +317,6 @@ async function load(this: LoaderContext): Promise<string> {
     .filter(Boolean)
     .join('\n');
 
-  if (options.types !== false && options.typesDir) writeTypes(this, options, configs.length, as);
-
   const named = options.namedExports === false ? [] : namedExportKeys(result);
   const namedExports = named
     .map(key => `export const ${key} = __tpit_value[${JSON.stringify(key)}];`)
@@ -365,6 +333,16 @@ ${namedExports}
 `;
 }
 
+// Reserved words can't be export names; everything else that is a valid identifier can.
+const RESERVED = new Set(
+  (
+    'await break case catch class const continue debugger default delete do else enum export ' +
+    'extends false finally for function if implements import in instanceof interface let new ' +
+    'null package private protected public return static super switch this throw true try ' +
+    'typeof var void while with yield'
+  ).split(' '),
+);
+
 /**
  * Keys of an object result (`as=metadata`, `as=img`, `as=picture`) to also export by name, so
  * `import { width, src } from './a.jpg?as=metadata'` works as it does in vite-imagetools. Arrays
@@ -372,7 +350,7 @@ ${namedExports}
  */
 function namedExportKeys(result: unknown): string[] {
   if (!result || typeof result !== 'object' || Array.isArray(result)) return [];
-  return Object.keys(result).filter(isExportName);
+  return Object.keys(result).filter(k => /^[A-Za-z_$][\w$]*$/.test(k) && !RESERVED.has(k));
 }
 
 // the source is read from disk by the loader itself, so skip the utf8 decode

@@ -56,6 +56,42 @@ export const KNOWN_DIRECTIVES = new Set([
 /** Type-only markers (see client.d.ts), dropped before processing. */
 export const TYPE_MARKERS = ['imagetools', 'imagetools-gallery'];
 
+/** Outputs whose shape a marker picks: one value or an array, depending on the image count. */
+const MARKED_OUTPUTS = new Set(['url', 'metadata', 'meta']);
+
+/**
+ * Checks the type marker that ends a query against what the import gives. The client types pick an
+ * import's type by how its query ends, so a wrong marker makes TypeScript wrong about the value —
+ * `string` for what is really an array — with nothing else to say so.
+ */
+export function checkMarker(query: string, as: string | null, count: number): string | undefined {
+  const last = [...new URLSearchParams(query).keys()].at(-1);
+  if (last !== 'imagetools' && last !== 'imagetools-gallery') return undefined;
+  const [output = 'url', keys] = (as ?? 'url').split(':');
+  if (!MARKED_OUTPUTS.has(output)) {
+    return `as=${output} is typed without a marker; remove &${last}.`;
+  }
+  if (keys !== undefined) {
+    return (
+      `as=${output}:${keys} has no marker type, since its keys vary; remove &${last} and ` +
+      `declare the import's type, or use as=${output} without keys.`
+    );
+  }
+  if (last === 'imagetools' && count > 1) {
+    return (
+      `the query gives ${count} images, an array, but &imagetools types it as a single value. ` +
+      `End it with &imagetools-gallery.`
+    );
+  }
+  if (last === 'imagetools-gallery' && count === 1) {
+    return (
+      'the query gives one image, a single value, but &imagetools-gallery types it as an ' +
+      'array. End it with &imagetools.'
+    );
+  }
+  return undefined;
+}
+
 /** Names people reach for that imagetools-core doesn't read, with what to use instead. */
 const REPLACEMENTS: Record<string, string> = {
   width: 'w',

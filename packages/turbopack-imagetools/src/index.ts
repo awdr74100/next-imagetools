@@ -1,7 +1,3 @@
-import { existsSync } from 'node:fs';
-import path from 'node:path';
-import process from 'node:process';
-
 import type { NextConfig } from 'next';
 
 import type { LoaderOptions } from './shared';
@@ -76,41 +72,6 @@ function warnOnMultiValueDefaults(defaults: ImagetoolsOptions['defaultDirectives
 }
 
 /**
- * `next build` type-checks a Pages Router app before it compiles, so the loaders haven't written
- * any types yet (and a `typegen` run before the build is emptied out with the rest of distDir).
- * Only detectable when the build runs from the app's directory, which is the usual case.
- */
-function warnOnPagesRouterOnly(cwd: string) {
-  const has = (dir: string) =>
-    existsSync(path.join(cwd, dir)) || existsSync(path.join(cwd, 'src', dir));
-  if (has('app') || !has('pages')) return;
-  console.warn(
-    '[turbopack-imagetools] `types: true` needs the App Router: `next build` type-checks a ' +
-      'Pages Router app before any image is processed, so generated types are missing then. ' +
-      'Use the client types with `&imagetools` markers instead.',
-  );
-}
-
-type AfterCompile = NonNullable<NonNullable<NextConfig['compiler']>['runAfterProductionCompile']>;
-
-/**
- * `next build` empties distDir (keeping its cache) before compiling, and a warm Turbopack cache
- * then skips the loaders that would write the types again. So write them all once the compile is
- * done, before the App Router type check — after the hook the config already had.
- */
-function writeTypesAfterCompile(
-  previous: AfterCompile | undefined,
-  options: LoaderOptions,
-  extensions: string[],
-): AfterCompile {
-  return async metadata => {
-    await previous?.(metadata);
-    const { writeProjectTypes } = await import('./project-types');
-    writeProjectTypes(metadata.projectDir, options, new Set(extensions), metadata.distDir);
-  };
-}
-
-/**
  * Adds the imagetools rules to `turbopack.rules`. Rules the config already has for the same
  * extension are kept and run first.
  */
@@ -120,20 +81,6 @@ export function withImagetools(
 ): NextConfig {
   const { extensions = DEFAULT_EXTENSIONS, ...userOptions } = options;
   const loaderOptions: LoaderOptions = { ...userOptions };
-  let compiler = nextConfig.compiler;
-  if (options.types) {
-    // generated types go where Next.js' own do: its tsconfig includes `<distDir>/types/**/*.ts`
-    loaderOptions.typesDir = `${nextConfig.distDir ?? '.next'}/types/turbopack-imagetools`;
-    compiler = {
-      ...compiler,
-      runAfterProductionCompile: writeTypesAfterCompile(
-        compiler?.runAfterProductionCompile,
-        loaderOptions,
-        extensions,
-      ),
-    };
-    warnOnPagesRouterOnly(process.cwd());
-  }
   warnOnMultiValueDefaults(loaderOptions.defaultDirectives);
   const rules: TurbopackRules = { ...nextConfig.turbopack?.rules };
   for (const ext of extensions) {
@@ -142,9 +89,5 @@ export function withImagetools(
     const ours = toRules(imagetoolsRules(loaderOptions, ext));
     rules[key] = existing === undefined ? ours : [...toRules(existing), ...ours];
   }
-  return {
-    ...nextConfig,
-    ...(compiler && { compiler }),
-    turbopack: { ...nextConfig.turbopack, rules },
-  };
+  return { ...nextConfig, turbopack: { ...nextConfig.turbopack, rules } };
 }

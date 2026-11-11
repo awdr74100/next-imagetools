@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import {
   KNOWN_DIRECTIVES,
   checkDirectives,
+  checkMarker,
   closest,
   dropEmptyValues,
 } from '../packages/turbopack-imagetools/src/directives';
@@ -124,5 +125,40 @@ describe('closest', () => {
 
   it('counts a swap of adjacent letters as one edit', () => {
     expect(closest('scrset', ['srcset', 'picture'])).toBe('srcset');
+  });
+});
+
+describe('checkMarker', () => {
+  it.each([
+    ['?w=400&imagetools', null, 1],
+    ['?w=400;800&imagetools-gallery', null, 2],
+    ['?as=metadata&imagetools', 'metadata', 1],
+    ['?w=400;800&as=meta&imagetools-gallery', 'meta', 2],
+    // no marker, or one that isn't last and so doesn't pick the type
+    ['?w=400;800', null, 2],
+    ['?imagetools&w=400;800', null, 2],
+    ['?w=400;800&as=srcset', 'srcset', 2],
+  ])('accepts %s', (query, as, count) => {
+    expect(checkMarker(query, as, count)).toBeUndefined();
+  });
+
+  it('rejects a marker that disagrees with the image count', () => {
+    expect(checkMarker('?w=400;800&imagetools', null, 2)).toBe(
+      'the query gives 2 images, an array, but &imagetools types it as a single value. ' +
+        'End it with &imagetools-gallery.',
+    );
+    expect(checkMarker('?w=400&as=metadata&imagetools-gallery', 'metadata', 1)).toBe(
+      'the query gives one image, a single value, but &imagetools-gallery types it as an array. ' +
+        'End it with &imagetools.',
+    );
+  });
+
+  it('rejects a marker on an output that types without one, or has no marker type', () => {
+    expect(checkMarker('?w=400&as=img&imagetools', 'img', 1)).toBe(
+      'as=img is typed without a marker; remove &imagetools.',
+    );
+    expect(checkMarker('?as=metadata:width;height&imagetools', 'metadata:width;height', 1)).toMatch(
+      /^as=metadata:width;height has no marker type/,
+    );
   });
 });

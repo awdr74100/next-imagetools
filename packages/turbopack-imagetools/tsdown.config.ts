@@ -13,16 +13,6 @@ export default defineConfig([
     fixedExtension: true,
     publint: true,
   },
-  // the `turbopack-imagetools` command
-  {
-    entry: { cli: 'src/cli.ts' },
-    format: 'esm',
-    platform: 'node',
-    target: 'node22',
-    dts: false,
-    clean: false,
-    fixedExtension: true,
-  },
   // Turbopack loads loaders by path through loader-runner, which reads `default` and `raw` off
   // a CommonJS module. Both entries share one build so `shared.ts` (and its in-process memo of
   // running transforms) is a single chunk rather than a copy per loader.

@@ -15,11 +15,11 @@
 //
 //   import { src, width, height } from './hero.jpg?w=800&as=metadata&imagetools';
 //
-// `as=srcset`, `as=img` and `as=picture` always produce a single value, so those also type
-// without a marker as long as the `as=` directive comes last.
+// `as=srcset`, `as=img`, `as=picture` and `as=next` always produce a single value, so those type
+// without a marker as long as the `as=` directive comes last. The build checks every marker
+// against what the import gives, so a wrong one fails it rather than giving a wrong type.
 
-// Global so the declarations generated into an app's `.next/types` can use them: imagetools-core
-// resolves from here, where it is a dependency, but not from an app under pnpm's strict layout.
+// Global, so an app can name these types without depending on imagetools-core itself.
 type ImagetoolsImg = import('imagetools-core').Img;
 type ImagetoolsPicture = import('imagetools-core').Picture;
 
@@ -58,7 +58,7 @@ declare module '*as=next' {
   export const blurHeight: ImagetoolsStaticImage['blurHeight'];
 }
 
-declare module '*&as=metadata&imagetools' {
+declare module '*as=metadata&imagetools' {
   const metadata: ImagetoolsMetadata;
   export default metadata;
   export const src: ImagetoolsMetadata['src'];
@@ -76,12 +76,12 @@ declare module '*&as=metadata&imagetools' {
   export const orientation: ImagetoolsMetadata['orientation'];
 }
 
-declare module '*&as=metadata&imagetools-gallery' {
+declare module '*as=metadata&imagetools-gallery' {
   const metadata: ImagetoolsMetadata[];
   export default metadata;
 }
 
-declare module '*&as=meta&imagetools' {
+declare module '*as=meta&imagetools' {
   const metadata: ImagetoolsMetadata;
   export default metadata;
   export const src: ImagetoolsMetadata['src'];
@@ -99,7 +99,7 @@ declare module '*&as=meta&imagetools' {
   export const orientation: ImagetoolsMetadata['orientation'];
 }
 
-declare module '*&as=meta&imagetools-gallery' {
+declare module '*as=meta&imagetools-gallery' {
   const metadata: ImagetoolsMetadata[];
   export default metadata;
 }
