@@ -13,6 +13,7 @@ import picture from './images/hero.jpg?w=400;800&format=avif;webp&as=picture';
 import srcset from './images/hero.jpg?w=300;600&as=srcset';
 import nextImage from './images/hero.jpg?w=400;800&format=webp&as=next';
 import withPlaceholder from './images/hero.jpg?w=400&placeholder&as=img';
+import { placeholder as metaPlaceholder } from './images/hero.jpg?w=500&placeholder&as=metadata&imagetools';
 
 url satisfies string;
 gallery satisfies string[];
@@ -28,6 +29,7 @@ hasAlpha satisfies boolean | undefined;
 sources satisfies Record<string, string>;
 nextImage satisfies StaticImageData;
 withPlaceholder.placeholder satisfies string | undefined;
+metaPlaceholder satisfies string | undefined;
 
 // @ts-expect-error a single URL is not an array
 url satisfies string[];

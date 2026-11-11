@@ -82,6 +82,22 @@ export function checkMarker(query: string, as: string | null, count: number): st
       `declare the import's type, or use as=${output} without keys.`
     );
   }
+  // The client types see only how the query ends: `…&as=metadata&imagetools` types as metadata,
+  // while the same marker after any other directive types as a URL — whatever the import gives.
+  if (output !== 'url') {
+    if (!params.has('as')) {
+      return (
+        `as=${output} comes from a preset or the defaults, so &${last} types this import as a ` +
+        `URL; put as=${output} in the query, right before &${last}.`
+      );
+    }
+    if ([...params.keys()].at(-2) !== 'as') {
+      return (
+        `&${last} types this import as metadata only when as=${output} comes right before it; ` +
+        `here it types as a URL. Move as=${output} to the end: …&as=${output}&${last}.`
+      );
+    }
+  }
   if (last === 'imagetools' && count > 1) {
     return (
       `the query gives ${count} images, an array, but &imagetools types it as a single value. ` +
