@@ -97,7 +97,7 @@ The most common ones:
 - `position` — where to crop from with `fit=cover`, e.g. `top` or `attention`
 - `blur`, `rotate`, `flip`, `flop`, `grayscale`, `tint`, `normalize`, `lossless`, `progressive`, …
 
-See the [imagetools directive reference](https://github.com/JonasKruckenberg/imagetools/blob/main/docs/directives.md) for every directive. It still lists `withoutEnlargement` and `withoutReduction`, which no longer have an effect ([imagetools#965](https://github.com/JonasKruckenberg/imagetools/pull/965)); use `allowUpscale` instead.
+See the [imagetools directive reference](https://github.com/JonasKruckenberg/imagetools/blob/main/docs/directives.md) for every directive.
 
 Mistakes are reported instead of silently producing the wrong image. Each message names the import it is about:
 
